@@ -2947,6 +2947,12 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         attributes: true,
         attributeFilter: ['class'],
       });
+      // MaM's menu layer only covers the shoutbox, so clicks elsewhere on the
+      // page never reach it and the menu stays open. Pass those clicks on as a
+      // click on the layer, which MaM treats as "close the menu".
+      document.addEventListener('click', (event) => {
+        if (isOpen('sbMenuMain') && !root.contains(event.target)) menu.click();
+      });
     }
   }
 
