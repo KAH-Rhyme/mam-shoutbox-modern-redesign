@@ -2,7 +2,7 @@
 
 ![Version](https://img.shields.io/badge/version-1.0.0-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
 
-A clean, modern dark chat view for the MyAnonamouse shoutbox.
+A clean, modern dark chat view for the MaM shoutbox.
 
 **[Install userscript](https://raw.githubusercontent.com/KAH-Rhyme/mam-shoutbox-modern-redesign/main/mam-shoutbox-modern-redesign.user.js)** · [Report a problem](https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign/issues)
 
