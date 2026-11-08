@@ -1,6 +1,6 @@
 # 💬 MaM Shoutbox Modern Redesign
 
-![Version](https://img.shields.io/badge/version-1.1.0-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
+![Version](https://img.shields.io/badge/version-1.1.1-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
 
 A clean, modern dark chat view for the MaM shoutbox.
 

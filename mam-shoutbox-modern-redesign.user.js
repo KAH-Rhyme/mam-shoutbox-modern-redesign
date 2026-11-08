@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MaM Shoutbox Modern Redesign
 // @namespace    https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign
-// @version      1.1.0
+// @version      1.1.1
 // @description  Restyles the MyAnonamouse shoutbox as a clean, modern dark chat view.
 // @author       KAH-Rhyme
 // @license      MIT
@@ -1097,14 +1097,25 @@
   background: none !important;
   white-space: nowrap;
 }
-/* "quote" action */
-#shoutbox.mamsb #sbMenuMain #sbQuote {
+/* Action rows: every row above the user row (Quote, Edit on your own shouts,
+   and anything else MaM adds, e.g. for staff). MaM's GIF icons are swapped for
+   plain symbols; MaM's empty spacer rows are dropped. */
+#shoutbox.mamsb #sbMenuMain > ul > li:empty { display: none !important; }
+#shoutbox.mamsb #sbMenuMain > ul > li:has(~ #sbun) {
   cursor: pointer;
   text-transform: capitalize;
 }
-#shoutbox.mamsb #sbMenuMain #sbQuote:hover { background: var(--sb-bg-tertiary) !important; }
-#shoutbox.mamsb #sbMenuMain #sbQuote > img { display: none; }
-#shoutbox.mamsb #sbMenuMain #sbQuote::before { content: "↩"; color: var(--sb-text-secondary); }
+#shoutbox.mamsb #sbMenuMain > ul > li:has(~ #sbun):hover { background: var(--sb-bg-tertiary) !important; }
+#shoutbox.mamsb #sbMenuMain > ul > li:has(~ #sbun) > img { display: none !important; }
+/* :where() keeps this below the per-action symbols that follow */
+#shoutbox.mamsb #sbMenuMain > ul > li:where(:has(~ #sbun))::before {
+  content: "";
+  width: 1em;
+  color: var(--sb-text-secondary);
+  text-align: center;
+}
+#shoutbox.mamsb #sbMenuMain #sbQuote::before { content: "↩"; }
+#shoutbox.mamsb #sbMenuMain #sbEdit::before { content: "✎"; }
 /* User row: name, rank icon, PM link */
 #shoutbox.mamsb #sbMenuMain #sbun {
   gap: 4px;
