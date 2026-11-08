@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MaM Shoutbox Modern Redesign
 // @namespace    https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign
-// @version      1.2.0
+// @version      1.2.1
 // @description  Restyles the MyAnonamouse shoutbox as a clean, modern dark chat view.
 // @author       KAH-Rhyme
 // @license      MIT
@@ -165,8 +165,12 @@
   --sb-accent: hsl(222 79% 59%);
   --sb-accent-hover: hsl(222 100% 68%);
   --sb-border: hsl(240 5% 26%);
-  --sb-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
-  --sb-emoji-font: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif; /* = EMOJI_FONT */
+  /* "Twemoji Mozilla" is only for emoji the fonts before it don't have: so
+     Firefox on Windows shows flags in shouts, not letter pairs. */
+  --sb-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, "Twemoji Mozilla", sans-serif;
+  /* Firefox's own Twemoji Mozilla comes before Windows' Segoe UI Emoji, which
+     has no flags (it draws them as letter pairs). Other browsers can't use it. */
+  --sb-emoji-font: "Apple Color Emoji", "Twemoji Mozilla", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; /* = EMOJI_FONT */
 }
 #shoutbox.mamsb {
   --sb-nick-w: 130px;
@@ -3491,7 +3495,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   // block below, and emoji are drawn with the system's own emoji font. It loads
   // nothing, and picking an emoji only types it into the message box.
   // Same list as --sb-emoji-font in the CSS.
-  const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif';
+  const EMOJI_FONT = '"Apple Color Emoji", "Twemoji Mozilla", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
   // Each swatch is a raised hand in that tone.
   const SKIN_TONES = [
     { name: 'Default skin tone', hand: '\u270B' },
@@ -3519,8 +3523,11 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     context: null,
     singleWidth: 0,
 
-    /** The newest emoji version to show. Tested once per browser version. */
-    maxVersion() {
+    /**
+     * { version: newest emoji version to show, flags: can it draw flags }.
+     * Tested once per browser version.
+     */
+    support() {
       const newestKnown = EMOJI_VERSION_TESTS[0]?.[0] ?? 0;
       let saved = null;
       try {
@@ -3528,24 +3535,36 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       } catch {
         // ignore broken / unavailable storage
       }
-      // Re-test after a browser update, or when this script's list gets newer emoji.
-      if (saved?.browser === navigator.userAgent && saved.newestKnown === newestKnown) return saved.version;
+      // Re-test after a browser update, or when this script's emoji list or fonts change.
+      if (
+        saved?.browser === navigator.userAgent &&
+        saved.newestKnown === newestKnown &&
+        saved.fonts === EMOJI_FONT &&
+        typeof saved.flags === 'boolean'
+      ) {
+        return { version: saved.version, flags: saved.flags };
+      }
 
-      const version = this.testVersion();
-      if (version === null) return this.FALLBACK_VERSION; // not saved: try again next time
+      const result = this.test();
+      // Not saved: try again next time. Flags stay in (at worst they show as letters).
+      if (result === null) return { version: this.FALLBACK_VERSION, flags: true };
       try {
         localStorage.setItem(
           this.STORAGE_KEY,
-          JSON.stringify({ browser: navigator.userAgent, newestKnown, version }),
+          JSON.stringify({ browser: navigator.userAgent, newestKnown, fonts: EMOJI_FONT, ...result }),
         );
       } catch {
         // storage full or blocked; just test again next time
       }
-      return version;
+      return result;
     },
 
-    /** Newest version whose test emoji draws in colour; null if the test can't be trusted. */
-    testVersion() {
+    /**
+     * { version: newest version whose test emoji draws in colour, flags: does
+     * a flag draw in colour }, or null if the test can't be trusted. Windows'
+     * own emoji font draws flags as two letters, which this catches.
+     */
+    test() {
       try {
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = this.TEST_SIZE;
@@ -3557,10 +3576,11 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         // A long-standing emoji must pass, or the drawings are being blocked or
         // altered and the test says nothing.
         if (!this.drawsInColour(context, '😀')) return null;
+        const flags = this.drawsInColour(context, '\u{1F1EB}\u{1F1F7}'); // 🇫🇷
         for (const [version, emoji] of EMOJI_VERSION_TESTS) {
-          if (this.drawsInColour(context, emoji)) return version;
+          if (this.drawsInColour(context, emoji)) return { version, flags };
         }
-        return 1;
+        return { version: 1, flags };
       } catch {
         return null; // canvas blocked
       }
@@ -3607,6 +3627,10 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       }
     },
   };
+
+  // Country flags (pairs of regional-indicator letters) and region flags such
+  // as England's (a black flag plus hidden tag letters).
+  const FLAG_SEQUENCE = /[\u{1F1E6}-\u{1F1FF}\u{E0020}-\u{E007F}]/u;
 
   /** Lower-case words, for searching. */
   const searchWords = (text) => text.toLowerCase().split(/[\s_:,]+/).filter(Boolean);
@@ -3803,7 +3827,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 
     /** Build the grid, leaving out emoji this device can't draw. */
     buildList() {
-      const maxVersion = emojiSupport.maxVersion();
+      const { version: maxVersion, flags } = emojiSupport.support();
       const fragment = document.createDocumentFragment();
       let grid = null;
       let section = null;
@@ -3826,6 +3850,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         }
         const [emoji, version, name, extraWords, toneList] = row;
         if (version > maxVersion || !emojiSupport.drawsAsOne(emoji)) continue;
+        if (!flags && FLAG_SEQUENCE.test(emoji)) continue; // country / region flags this device draws as letters
         const el = document.createElement('span');
         el.className = 'mamsb-emoji-item';
         el.id = `mamsb-emoji-${this.items.length}`;
