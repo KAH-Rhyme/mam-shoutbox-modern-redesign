@@ -1,0 +1,12 @@
+{
+  "name": "mam-shoutbox-modern-redesign-tools",
+  "private": true,
+  "description": "Development tools for the userscript. Nothing here ships with it.",
+  "type": "module",
+  "scripts": {
+    "build:emoji": "node tools/build-emoji-data.mjs"
+  },
+  "devDependencies": {
+    "emojibase-data": "18.0.0"
+  }
+}
