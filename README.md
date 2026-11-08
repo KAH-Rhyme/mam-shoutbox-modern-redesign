@@ -1,6 +1,6 @@
 # 💬 MaM Shoutbox Modern Redesign
 
-![Version](https://img.shields.io/badge/version-1.1.1-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
+![Version](https://img.shields.io/badge/version-1.2.0-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
 
 A clean, modern dark chat view for the MaM shoutbox.
 
@@ -30,6 +30,7 @@ Works on current Chrome, Edge, Firefox and Safari. Mobile view has been tested o
 - **Clickable replies:** quotes are shown as a reply line above the shout. Click it to jump to the original shout, which briefly lights up.
 - **Highlights:** shouts that mention your username (or any words you choose) get a red tint, including replies to you.
 - **Emoji picker:** a ☺ button next to **Shout** opens a searchable list of emoji, with skin tones. Search by name or keyword ("happy", "thumbs"), use the arrow keys and Enter, and Shift-click or Shift+Enter to add several. It only lists emoji your device can show, and everything it needs is built into the script, so it loads nothing.
+- **Tidy suggestions:** typing `@name` or `:smilie` shows MaM's suggestions in a compact list just above the message box (or edit box), kept inside the shoutbox. Smilies are shown at a readable size next to their code, and names are in their class colour when they have a shout on screen.
 - **Readable names:**
   - Name colours that are hard to read on a dark background are adjusted only as much as needed, so they stay close to the original.
   - Hover over a name to see it in full with the member's rank.

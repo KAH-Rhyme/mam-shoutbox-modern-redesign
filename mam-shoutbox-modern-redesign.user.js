@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MaM Shoutbox Modern Redesign
 // @namespace    https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign
-// @version      1.1.1
+// @version      1.2.0
 // @description  Restyles the MyAnonamouse shoutbox as a clean, modern dark chat view.
 // @author       KAH-Rhyme
 // @license      MIT
@@ -152,7 +152,10 @@
   const BG_RGB = [31, 31, 35]; // hsla(240, 6%, 13%) — used for contrast checks
 
   const CSS = `
-#shoutbox.mamsb {
+/* Colours and fonts, also used by MaM's suggestion lists (@ names, : smilies),
+   which hang off <body> rather than #shoutbox. */
+#shoutbox.mamsb,
+.ui-autocomplete.mamsb-ac {
   --sb-bg-primary: hsl(240 6% 13%);
   --sb-bg-secondary: hsl(240 7% 16%);
   --sb-bg-tertiary: hsl(240 6% 23%);
@@ -164,6 +167,8 @@
   --sb-border: hsl(240 5% 26%);
   --sb-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
   --sb-emoji-font: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif; /* = EMOJI_FONT */
+}
+#shoutbox.mamsb {
   --sb-nick-w: 130px;
   --sb-time-w: 38px;
   --sb-btn-w: 26px; /* each of the @ / ↩ / ⋮ hover buttons */
@@ -1444,6 +1449,101 @@ html.mamsb-mobile-open body,
 html.mamsb-mobile-open body > .ui-autocomplete {
   z-index: 100001 !important;
 }
+
+/* ---- MaM's suggestion lists (typing @name or :smilie) ----
+   jQuery UI's autocomplete menus, restyled as a panel like the emoji picker.
+   suggestionLists.place() pins them just above the message box (or edit box),
+   as wide as it and no taller than the space inside the shoutbox. These
+   !important rules outrank the top / left / width jQuery writes inline. */
+.ui-autocomplete.mamsb-ac {
+  position: fixed !important;
+  top: var(--sb-ac-top, 0px) !important;
+  left: var(--sb-ac-left, 0px) !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translateY(-100%); /* its bottom edge sits at --sb-ac-top */
+  z-index: 100001 !important;
+  box-sizing: border-box !important;
+  width: var(--sb-ac-width, 300px) !important;
+  max-height: var(--sb-ac-max-h, 400px) !important;
+  margin: 0 !important;
+  padding: 4px 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  list-style: none !important;
+  background: var(--sb-bg-secondary) !important;
+  color: var(--sb-text) !important;
+  border: 1px solid var(--sb-border) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  font-family: var(--sb-font) !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+.ui-autocomplete.mamsb-ac.is-below { transform: none; } /* message box above the list: open downwards */
+.ui-autocomplete.mamsb-ac::-webkit-scrollbar { width: 8px; }
+.ui-autocomplete.mamsb-ac::-webkit-scrollbar-track { background: var(--sb-bg-secondary); }
+.ui-autocomplete.mamsb-ac::-webkit-scrollbar-thumb { background: var(--sb-border); border-radius: 4px; }
+.ui-autocomplete.mamsb-ac > .ui-menu-item {
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+  background: none !important;
+  border: 0 !important;
+}
+.ui-autocomplete.mamsb-ac .ui-menu-item-wrapper {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box !important;
+  min-height: 32px;
+  margin: 0 !important;
+  padding: 4px 12px !important;
+  background: none !important;
+  color: var(--sb-text) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  font-weight: 400 !important;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Highlighted row (mouse or ↑ ↓): the subtle grey of the emoji picker, in
+   place of the theme's orange */
+.ui-autocomplete.mamsb-ac .ui-menu-item-wrapper.ui-state-active {
+  background: var(--sb-bg-tertiary) !important;
+  border: 0 !important;
+  margin: 0 !important;
+}
+/* Smilies: the picture (up to 48px tall) in a fixed-width column, then its code */
+.ui-autocomplete.mamsb-ac .mamsb-ac-pic {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+}
+.ui-autocomplete.mamsb-ac .mamsb-ac-pic img {
+  display: block;
+  width: auto !important;
+  height: auto !important;
+  max-width: 72px !important;
+  max-height: 48px !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+.ui-autocomplete.mamsb-ac .mamsb-ac-code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sb-text-secondary);
+  text-overflow: ellipsis;
+}
+.ui-autocomplete.mamsb-ac .ui-state-active .mamsb-ac-code { color: var(--sb-text); }
+/* Mobile view: bigger rows to tap */
+.ui-autocomplete.mamsb-ac.is-mobile { font-size: 16px !important; }
+.ui-autocomplete.mamsb-ac.is-mobile .ui-menu-item-wrapper { min-height: 44px; padding: 6px 16px !important; }
 /* "Zoomed in · Reset zoom": shown after you pinch-zoom in mobile view. It sits
    just above the message box; zoomPill.place() scales it back to normal size. */
 #shoutbox.mamsb .mamsb-zoom-pill { display: none; }
@@ -1559,6 +1659,16 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 /* Message box: 16px text stops iPhones zooming in when you tap it */
 #shoutbox.mamsb.mamsb-mobile #sbform { padding: 8px !important; }
 #shoutbox.mamsb.mamsb-mobile #shbox_text { font-size: 16px !important; }
+/* Edit dialog: MaM gives it a fixed height when it opens, so when the
+   keyboard then shrinks the shoutbox, the edit box was left behind the
+   keyboard. Filling the shoutbox instead keeps it just above the keyboard,
+   like the message box. */
+#shoutbox#shoutbox.mamsb.mamsb-mobile #sbEditOverlay {
+  top: 0 !important;
+  bottom: 0 !important;
+  height: auto !important;
+}
+#shoutbox.mamsb.mamsb-mobile #sbEditOverlay textarea { font-size: 16px !important; }
 #shoutbox.mamsb.mamsb-mobile.mamsb-input-nick-on .mamsb-input-nick { max-width: 30vw; padding-left: 10px; font-size: 15px; }
 #shoutbox.mamsb.mamsb-mobile #sbFullToggle,
 #shoutbox.mamsb.mamsb-mobile .mamsb-mobile-btn { display: none !important; } /* use ✕ Exit instead */
@@ -3344,6 +3454,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     buildSettingsPanel(root);
     // Before setUpSizing: its Esc handler (leave full screen) must come after ours.
     emojiPicker.build(root);
+    suggestionLists.setUp(root);
 
     const input = root.querySelector('#shbox_text');
     if (input && !input.placeholder) input.placeholder = 'Message shoutbox';
@@ -3916,6 +4027,145 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         if (item.tones) item.el.textContent = tone ? item.tones[tone - 1] : item.emoji;
       }
       if (this.active) this.footEmoji.textContent = this.active.el.textContent;
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // MaM's suggestion lists (typing @name or :smilie in the message / edit box)
+  // ---------------------------------------------------------------------------
+  // MaM fills these with jQuery UI's autocomplete, which hangs the list off
+  // <body> at full size: hundreds of full-size smilies could run far off the
+  // page. MaM still does the matching, keyboard handling (↑ ↓ Enter Tab Esc)
+  // and inserting; this only restyles the list and keeps it inside the
+  // shoutbox, just above the box you're typing in.
+  const suggestionLists = {
+    GAP: 4, // px between the list and the box
+    MAX_HEIGHT: 400, // px, on desktop
+    MIN_HEIGHT: 120, // px; below this, use whichever side has more room
+    LIST_BG_RGB: [38, 38, 44], // --sb-bg-secondary, for name-colour contrast
+    root: null,
+    lists: new Set(), // every autocomplete <ul> seen so far
+    shown: null, // the one currently open, if it's ours
+
+    setUp(root) {
+      this.root = root;
+      for (const list of document.querySelectorAll('body > ul.ui-autocomplete')) this.watch(list);
+      // jQuery UI creates each list the first time it's needed.
+      new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === 1 && node.matches('ul.ui-autocomplete')) this.watch(node);
+          }
+        }
+      }).observe(document.body, { childList: true });
+
+      const replace = () => {
+        if (this.shown) this.place(this.shown);
+      };
+      window.addEventListener('resize', replace);
+      window.addEventListener('scroll', replace, { capture: true, passive: true });
+      window.visualViewport?.addEventListener('resize', replace);
+      new ResizeObserver(replace).observe(root);
+    },
+
+    watch(list) {
+      if (this.lists.has(list)) return;
+      this.lists.add(list);
+      // jQuery shows / moves the list through its style, and rebuilds the rows
+      // on every keystroke.
+      new MutationObserver(() => this.update(list)).observe(list, {
+        childList: true,
+        attributes: true,
+        attributeFilter: ['style'],
+      });
+      this.update(list);
+    },
+
+    /** The message box or edit box this list is for, or null if it's not ours. */
+    ownerOf() {
+      const active = document.activeElement;
+      return active?.matches?.('#shbox_text, #editShout') && this.root.contains(active) ? active : null;
+    },
+
+    update(list) {
+      const open = list.style.display !== 'none' && list.children.length > 0;
+      const input = open ? this.ownerOf() : null;
+      if (!input) {
+        if (this.shown === list) this.shown = null;
+        if (!open) return;
+        list.classList.remove('mamsb-ac'); // some other box on the page: leave it as MaM made it
+        return;
+      }
+      list.classList.add('mamsb-ac');
+      list.classList.toggle('is-mobile', mobileViewActive);
+      list.dataset.mamsbFor = input.id;
+      this.tidyRows(list);
+      this.shown = list;
+      this.place(list);
+    },
+
+    /** Smilie rows: picture then code. Name rows: in the member's colour, if known. */
+    tidyRows(list) {
+      let colours = null;
+      for (const row of list.querySelectorAll('.ui-menu-item-wrapper:not([data-mamsb-row])')) {
+        row.dataset.mamsbRow = '';
+        const picture = row.querySelector('img');
+        if (picture) {
+          const code = document.createElement('span');
+          code.className = 'mamsb-ac-code';
+          code.textContent = row.textContent.trim();
+          const holder = document.createElement('span');
+          holder.className = 'mamsb-ac-pic';
+          holder.append(picture);
+          row.replaceChildren(holder, code);
+        } else {
+          colours ??= this.nameColours();
+          const colour = colours.get(row.textContent.trim().toLowerCase());
+          if (colour) row.style.setProperty('color', colour, 'important');
+        }
+      }
+    },
+
+    /**
+     * Name → readable colour, for everyone with a shout in the list. MaM's
+     * suggestions are plain text, so names that haven't shouted stay uncoloured.
+     */
+    nameColours() {
+      const colours = new Map();
+      for (const span of this.root.querySelectorAll('#sbf .mamsb-msg > .mamsb-nick span[data-mamsb-color]')) {
+        const name = span.textContent.trim().toLowerCase();
+        if (!name || colours.has(name)) continue;
+        // A name shown on a coloured background uses that colour for its text here.
+        const rgb = parseRgb(span.dataset.mamsbColor) || parseRgb(span.dataset.mamsbBg);
+        if (!rgb) continue;
+        const readable = readableColour(rgb, this.LIST_BG_RGB) || rgb;
+        colours.set(name, `rgb(${readable.join(', ')})`);
+      }
+      return colours;
+    },
+
+    /** Just above the box (or below, if there's more room there), inside the shoutbox. */
+    place(list) {
+      const input = document.getElementById(list.dataset.mamsbFor);
+      if (!input || !list.isConnected) return;
+      const box = input.getBoundingClientRect();
+      const shoutbox = this.root.getBoundingClientRect();
+      const roomAbove = box.top - shoutbox.top - 2 * this.GAP;
+      const roomBelow = shoutbox.bottom - box.bottom - 2 * this.GAP;
+      const below = roomAbove < this.MIN_HEIGHT && roomBelow > roomAbove;
+      const room = below ? roomBelow : roomAbove;
+      const maxHeight = Math.max(80, mobileViewActive ? room : Math.min(this.MAX_HEIGHT, room));
+      const values = {
+        '--sb-ac-top': `${Math.round(below ? box.bottom + this.GAP : box.top - this.GAP)}px`,
+        '--sb-ac-left': `${Math.round(box.left)}px`,
+        '--sb-ac-width': `${Math.round(box.width)}px`,
+        '--sb-ac-max-h': `${Math.round(maxHeight)}px`,
+      };
+      // Only write what changed: these writes are seen by the list's watcher.
+      for (const [name, value] of Object.entries(values)) {
+        if (list.style.getPropertyValue(name) !== value) list.style.setProperty(name, value);
+      }
+      list.classList.toggle('is-below', below);
     },
   };
 
