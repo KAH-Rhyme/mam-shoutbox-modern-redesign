@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MaM Shoutbox Modern Redesign
 // @namespace    https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign
-// @version      1.4.0
+// @version      1.4.1
 // @description  Restyles the MyAnonamouse shoutbox as a clean, modern dark chat view.
 // @author       KAH-Rhyme
 // @license      MIT
@@ -2039,6 +2039,28 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     if (wasAtNewest) scrollToNewest(list);
   }
 
+  /**
+   * The same for size changes the script doesn't make itself, e.g. MaM
+   * shrinking the list when you leave full screen. By the time anything can
+   * react, the list is already smaller and no longer looks scrolled to the
+   * newest shouts, so whether you were there is remembered from your last
+   * scroll instead.
+   */
+  function stayAtNewestWhenResized(list) {
+    let atNewest = true;
+    list.addEventListener(
+      'scroll',
+      () => {
+        if (list.getClientRects().length) atNewest = distanceFromNewest(list) < AT_BOTTOM_SLACK;
+      },
+      { passive: true },
+    );
+    new ResizeObserver(() => {
+      if (!list.getClientRects().length) return; // hidden (other tab)
+      if (atNewest && distanceFromNewest(list) >= AT_BOTTOM_SLACK) scrollToNewest(list);
+    }).observe(list);
+  }
+
   // ---------------------------------------------------------------------------
   // Safety net against runaway loops
   // ---------------------------------------------------------------------------
@@ -3882,6 +3904,8 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     // rest of the shoutbox.
     window.addEventListener('resize', () => fitHeight(root));
     new ResizeObserver(() => fitHeight(root)).observe(root);
+    const list = root.querySelector('#sbf');
+    if (list) stayAtNewestWhenResized(list);
     // MaM maximises / restores by changing #shoutbox's inline style. (Our own
     // --sb-list-h write lands here too, but fitHeight only writes when the
     // value changes, so it settles straight away.)
