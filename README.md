@@ -1,6 +1,6 @@
 # 💬 MaM Shoutbox Modern Redesign
 
-![Version](https://img.shields.io/badge/version-1.3.0-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
+![Version](https://img.shields.io/badge/version-1.4.0-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
 
 A clean, modern dark chat view for the MaM shoutbox.
 
@@ -26,7 +26,8 @@ Works on current Chrome, Edge, Firefox and Safari. Mobile view has been tested o
 
 ## ✨ Features
 
-- **Modern layout:** time, name and message sit in tidy columns. The @ / quote / ⋮ buttons stay hidden until you hover over a shout, and they never cover the text.
+- **Modern layout:** time, name and message sit in tidy columns. The @ / quote / ✉ buttons stay hidden until you hover over a shout, and they never cover the text. ✉ sends the member a PM (in a new tab). On your own shouts they're quote / ✎, and ✎ edits the shout for as long as MaM lets you. Prefer MaM's ⋮ menu? Switch it back on in Settings (staff always have it).
+- **Edited shouts** are marked "(edited)". Hover over it to see when (tap it on a phone).
 - **Clickable replies:** quotes are shown as a reply line above the shout. Click it to jump to the original shout, which briefly lights up.
 - **Highlights:** shouts that mention your username (or any words you choose) get a red tint, including replies to you.
 - **Emoji picker:** a ☺ button next to **Shout** opens a searchable list of emoji, with skin tones. Search by name or keyword ("happy", "thumbs"), use the arrow keys and Enter, and Shift-click or Shift+Enter to add several. It only lists emoji your device can show, and everything it needs is built into the script, so it loads nothing.
@@ -44,7 +45,7 @@ Works on current Chrome, Edge, Firefox and Safari. Mobile view has been tested o
 - **Full screen:** press <kbd>Esc</kbd> to leave MaM's full-screen shoutbox.
 - **Mobile view (phones and tablets):**
   - A *📱 Mobile view* button opens the shoutbox full screen with a touch-friendly layout: larger text, name and time above each message, and a message box that stays above the on-screen keyboard.
-  - Tap a shout to show its @ / quote / ⋮ buttons, and tap a time to see it in full.
+  - Tap a shout to show its buttons and the member's rank and title, and tap a time to see it in full.
   - If you pinch-zoom in by mistake, a *Reset zoom* button brings you back.
   - The normal page is fitted to your screen when it loads.
 - **Works with your MaM settings:** supports newest-at-top or newest-at-bottom order, country flags on or off, and the message box at the top or bottom.
@@ -55,7 +56,7 @@ Click **⚙ Settings** at the right of the shoutbox tab bar. Settings are saved 
 
 | Section | Options |
 | --- | --- |
-| **Messages** | Fit to window height (desktop only), mark where older shouts were loaded, hide seconds, "Today" / "Yesterday" dates, shade every other shout (with strength slider), outline the shout under the mouse. |
+| **Messages** | Fit to window height (desktop only), mark where older shouts were loaded, hide seconds, "Today" / "Yesterday" dates, shade every other shout (with strength slider), outline the shout under the mouse, MaM's ⋮ menu in place of the ✉ / ✎ buttons (staff always have it). |
 | **Names** | Country flags (also needs flags on in your MaM preferences), rank and donor icons, fix hard-to-read name colours, keep coloured backgrounds behind names, name column width. |
 | **Message Box & Full Screen** | Show your name in the box, emoji button, smilies button (replaces the Smilies tab), Esc leaves full screen, Mobile view (on touch screens / always / never). |
 | **Highlights** | Words that highlight a shout. Your username is added for you, and you can remove it. |

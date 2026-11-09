@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MaM Shoutbox Modern Redesign
 // @namespace    https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign
-// @version      1.3.0
+// @version      1.4.0
 // @description  Restyles the MyAnonamouse shoutbox as a clean, modern dark chat view.
 // @author       KAH-Rhyme
 // @license      MIT
@@ -56,6 +56,12 @@
     zebraStrength: 3,
     /** Draw a thin outline around the shout under the mouse. */
     hoverOutline: true,
+    /**
+     * Keep MaM's ⋮ menu on each shout. Off: the shout's buttons are @ / ↩ / ✉
+     * (send a PM), or ↩ / ✎ on your own shouts. Always on for staff, whose
+     * extra tools are only in that menu.
+     */
+    shoutMenu: false,
     /** Show your own username at the start of the message box. */
     showInputNick: true,
     /** Show the emoji button between the message box and Shout. */
@@ -177,8 +183,8 @@
 #shoutbox.mamsb {
   --sb-nick-w: 130px;
   --sb-time-w: 38px;
-  --sb-btn-w: 26px; /* each of the @ / ↩ / ⋮ hover buttons */
-  --sb-actions-w: calc(3 * var(--sb-btn-w) - 2px); /* all three, borders overlapping */
+  --sb-btn-w: 26px; /* each of the hover buttons (@ / ↩ / ⋮, or ✉ / ✎ in place of ⋮) */
+  --sb-actions-w: calc(3 * var(--sb-btn-w) - 2px); /* three at most, borders overlapping */
 
   background: var(--sb-bg-primary) !important;
   color: var(--sb-text) !important;
@@ -587,7 +593,7 @@
   overflow-wrap: anywhere;
   color: var(--sb-text);
 }
-/* Keep the first line clear of the @ / ↩ / ⋮ hover buttons (76px wide, at the
+/* Keep the first line clear of the hover buttons (76px wide at most, at the
    top right). A thin float only shortens the first line; later lines use the
    full width. */
 #shoutbox.mamsb .mamsb-body::before {
@@ -603,14 +609,17 @@
 #shoutbox.mamsb .mamsb-hide,
 #shoutbox.mamsb .mamsb-reply > img.sbQuote { display: none !important; }
 
-/* Edited shouts: MaM marks these by giving the ⋮ a green background */
-#shoutbox.mamsb .mamsb-msg:has(> .sb_menu[data-et]:not([data-et="0"])) > .mamsb-body::after {
+/* Edited shouts: "(edited)" after the message, with the time it was edited in
+   its tooltip (or shown on tap). The words come from CSS, not text in the
+   page, so MaM's quote and the highlight check never see them. */
+#shoutbox.mamsb .mamsb-edited::after {
   content: "(edited)";
   margin-left: 6px;
   color: var(--sb-text-muted);
   font-size: 11px;
   font-style: normal;
 }
+#shoutbox.mamsb .mamsb-edited[data-mamsb-peek]::after { content: "(" attr(data-mamsb-peek) ")"; }
 
 /* /me actions: "*" in the name column, "name does thing" in the content */
 #shoutbox.mamsb .mamsb-msg.action::before {
@@ -674,10 +683,10 @@
   font-style: italic;
 }
 
-/* Hover actions: @mention · quote · menu, joined like a small toolbar */
-#shoutbox.mamsb .mamsb-msg > .sbAt,
-#shoutbox.mamsb .mamsb-msg > .sbNewQuote,
-#shoutbox.mamsb .mamsb-msg > .sb_menu {
+/* Hover actions joined like a small toolbar: @mention · quote · menu, or
+   with the menu off, @mention · quote · PM (others' shouts) and quote · edit
+   (your own). */
+#shoutbox.mamsb .mamsb-msg > :is(.sbAt, .sbNewQuote, .sb_menu, .mamsb-pm, .mamsb-edit) {
   position: absolute !important;
   top: 2px;
   z-index: 2;
@@ -694,26 +703,28 @@
   color: var(--sb-text-secondary) !important;
   font-size: 0 !important;
   text-decoration: none !important;
+  font-family: inherit; /* ✎ is a <button>, which doesn't inherit it by default */
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s ease;
+  /* Side by side from the right (slot 0 is rightmost), each overlapping the
+     previous one's border. Which buttons show, in which slots, is set near
+     the end of the stylesheet. */
+  right: calc(12px + var(--mamsb-slot, 0) * (var(--sb-btn-w) - 1px));
+  border-radius: var(--mamsb-corners, 0);
 }
-/* Side by side from the right, each overlapping the previous one's border */
-#shoutbox.mamsb .mamsb-msg > .sb_menu { right: 12px; border-radius: 0 4px 4px 0; }
-#shoutbox.mamsb .mamsb-msg > .sbNewQuote { right: calc(12px + var(--sb-btn-w) - 1px); border-radius: 0; }
-#shoutbox.mamsb .mamsb-msg > .sbAt { right: calc(12px + 2 * (var(--sb-btn-w) - 1px)); border-radius: 4px 0 0 4px; }
 #shoutbox.mamsb .mamsb-msg > .sbAt::before { content: "@"; font-size: 13px; }
 #shoutbox.mamsb .mamsb-msg > .sbNewQuote::before { content: "↩"; font-size: 13px; }
+#shoutbox.mamsb .mamsb-msg > .mamsb-pm::before { content: "✉"; font-size: 13px; }
+#shoutbox.mamsb .mamsb-msg > .mamsb-edit::before { content: "✎"; font-size: 13px; }
 #shoutbox.mamsb .mamsb-msg > .sb_menu svg {
   width: 4px !important;
   height: 13px !important;
   fill: currentColor;
 }
 @media (hover: hover) {
-  #shoutbox.mamsb:where(:not(.mamsb-mobile)) .mamsb-msg:hover > .sbAt,
-  #shoutbox.mamsb:where(:not(.mamsb-mobile)) .mamsb-msg:hover > .sbNewQuote,
-  #shoutbox.mamsb:where(:not(.mamsb-mobile)) .mamsb-msg:hover > .sb_menu {
+  #shoutbox.mamsb:where(:not(.mamsb-mobile)) .mamsb-msg:hover > :is(.sbAt, .sbNewQuote, .sb_menu, .mamsb-pm, .mamsb-edit) {
     opacity: 1;
     pointer-events: auto;
   }
@@ -723,16 +734,12 @@
   #shoutbox.mamsb:where(:not(.mamsb-mobile)) .mamsb-msg.mamsb-tapped {
     background: rgba(255, 255, 255, var(--sb-hover)) !important;
   }
-  #shoutbox.mamsb:where(:not(.mamsb-mobile)) .mamsb-msg.mamsb-tapped > .sbAt,
-  #shoutbox.mamsb:where(:not(.mamsb-mobile)) .mamsb-msg.mamsb-tapped > .sbNewQuote,
-  #shoutbox.mamsb:where(:not(.mamsb-mobile)) .mamsb-msg.mamsb-tapped > .sb_menu {
+  #shoutbox.mamsb:where(:not(.mamsb-mobile)) .mamsb-msg.mamsb-tapped > :is(.sbAt, .sbNewQuote, .sb_menu, .mamsb-pm, .mamsb-edit) {
     opacity: 1;
     pointer-events: auto;
   }
 }
-#shoutbox.mamsb .mamsb-msg > .sbAt:hover,
-#shoutbox.mamsb .mamsb-msg > .sbNewQuote:hover,
-#shoutbox.mamsb .mamsb-msg > .sb_menu:hover {
+#shoutbox.mamsb .mamsb-msg > :is(.sbAt, .sbNewQuote, .sb_menu, .mamsb-pm, .mamsb-edit):hover {
   color: var(--sb-text) !important;
 }
 
@@ -1222,25 +1229,28 @@
   background: none !important;
   white-space: nowrap;
 }
-/* Action rows: every row above the user row (Quote, Edit on your own shouts,
-   and anything else MaM adds, e.g. for staff). MaM's GIF icons are swapped for
-   plain symbols; MaM's empty spacer rows are dropped. */
+/* Action rows: rows above the user row that have an ID (Quote, Edit, Delete,
+   and anything else MaM adds for staff). Rows without one are information:
+   "Edited 12:34:56", and MaM's empty spacer rows, which are dropped. Only the
+   actions this script knows get a plain symbol in place of MaM's GIF icon;
+   anything else is left exactly as MaM draws it. */
 #shoutbox.mamsb #sbMenuMain > ul > li:empty { display: none !important; }
-#shoutbox.mamsb #sbMenuMain > ul > li:has(~ #sbun) {
-  cursor: pointer;
-  text-transform: capitalize;
+#shoutbox.mamsb #sbMenuMain > ul > li[id]:has(~ #sbun) { cursor: pointer; }
+#shoutbox.mamsb #sbMenuMain > ul > li[id]:has(~ #sbun):hover { background: var(--sb-bg-tertiary) !important; }
+#shoutbox.mamsb #sbMenuMain > ul > li:not([id]):has(~ #sbun) {
+  color: var(--sb-text-secondary);
+  font-size: 12px;
 }
-#shoutbox.mamsb #sbMenuMain > ul > li:has(~ #sbun):hover { background: var(--sb-bg-tertiary) !important; }
-#shoutbox.mamsb #sbMenuMain > ul > li:has(~ #sbun) > img { display: none !important; }
-/* :where() keeps this below the per-action symbols that follow */
-#shoutbox.mamsb #sbMenuMain > ul > li:where(:has(~ #sbun))::before {
-  content: "";
+#shoutbox.mamsb #sbMenuMain :is(#sbQuote, #sbEdit, #sbDel) { text-transform: capitalize; }
+#shoutbox.mamsb #sbMenuMain :is(#sbQuote, #sbEdit, #sbDel) > img { display: none !important; }
+#shoutbox.mamsb #sbMenuMain :is(#sbQuote, #sbEdit, #sbDel)::before {
   width: 1em;
   color: var(--sb-text-secondary);
   text-align: center;
 }
 #shoutbox.mamsb #sbMenuMain #sbQuote::before { content: "↩"; }
 #shoutbox.mamsb #sbMenuMain #sbEdit::before { content: "✎"; }
+#shoutbox.mamsb #sbMenuMain #sbDel::before { content: "✕"; }
 /* User row: name, rank icon, PM link */
 #shoutbox.mamsb #sbMenuMain #sbun {
   gap: 4px;
@@ -1250,21 +1260,21 @@
   font-weight: 500;
 }
 #shoutbox.mamsb #sbMenuMain #sbun img { height: 14px !important; width: auto; }
-#shoutbox.mamsb #sbMenuMain #sbun > a {
+/* The PM link. Only this one: any other links staff get in this row are left
+   as MaM draws them, and follow it on the right. */
+#shoutbox.mamsb #sbMenuMain #sbun > a[href^="/sendmessage.php"] {
   margin-left: auto;
   padding: 2px 4px;
   border-radius: 4px;
   opacity: 0.75;
 }
-#shoutbox.mamsb #sbMenuMain #sbun > a:hover { opacity: 1; background: var(--sb-bg-tertiary); }
-/* Rank (last row) */
-#shoutbox.mamsb #sbMenuMain > ul > li:last-child:not(#sbun):not(#sbQuote) {
+#shoutbox.mamsb #sbMenuMain #sbun > a[href^="/sendmessage.php"]:hover { opacity: 1; background: var(--sb-bg-tertiary); }
+/* Rank and custom title (the rows after the user row) */
+#shoutbox.mamsb #sbMenuMain #sbun ~ li {
   padding-top: 0 !important;
   color: var(--sb-text-secondary);
   font-size: 12px;
 }
-#shoutbox.mamsb #sbMenuMain a { color: var(--sb-text) !important; }
-#shoutbox.mamsb #sbMenuMain a:hover { color: var(--sb-accent-hover) !important; }
 #shoutbox.mamsb #sbEditOverlay > form {
   padding: 16px;
   background: var(--sb-bg-secondary) !important;
@@ -1402,27 +1412,15 @@ html.mamsb-mobile-open body,
 }
 
 /* The tap buttons: always at the top right of the shout, 40×32 */
-#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sb_menu,
-#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbNewQuote,
-#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbAt {
+#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > :is(.sb_menu, .sbNewQuote, .sbAt, .mamsb-pm, .mamsb-edit) {
   top: 8px !important;
   bottom: auto !important;
   left: auto !important;
+  right: calc(12px + var(--mamsb-slot, 0) * (var(--sb-btn-w) - 1px)) !important;
   width: var(--sb-btn-w) !important;
   height: 32px !important;
+  border-radius: var(--mamsb-corners, 0) !important;
   align-content: normal !important;
-}
-#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sb_menu {
-  right: 12px !important;
-  border-radius: 0 4px 4px 0 !important;
-}
-#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbNewQuote {
-  right: calc(12px + var(--sb-btn-w) - 1px) !important;
-  border-radius: 0 !important;
-}
-#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbAt {
-  right: calc(12px + 2 * (var(--sb-btn-w) - 1px)) !important;
-  border-radius: 4px 0 0 4px !important;
 }
 /* The ⋮ menu: normal text sizes, and nothing behind the name */
 #shoutbox#shoutbox.mamsb.mamsb-mobile #sbMenuMain > ul { font-size: 15px !important; margin: 0 !important; }
@@ -1430,7 +1428,8 @@ html.mamsb-mobile-open body,
   font-size: inherit !important;
   line-height: 1.4 !important;
 }
-#shoutbox#shoutbox.mamsb.mamsb-mobile #sbMenuMain > ul > li:last-child:not(#sbun):not(#sbQuote) { font-size: 13px !important; }
+/* Information rows: rank and title (after the user row), "Edited …" (before it) */
+#shoutbox#shoutbox.mamsb.mamsb-mobile #sbMenuMain > ul > li:is(#sbun ~ li, :not([id]):has(~ #sbun)) { font-size: 13px !important; }
 #shoutbox#shoutbox.mamsb.mamsb-mobile #sbMenuMain #sbun > span {
   display: inline !important;
   padding: 0 !important;
@@ -1487,8 +1486,7 @@ html.mamsb-mobile-open body,
   letter-spacing: normal !important;
 }
 #shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > a.mamsb-nick { display: block !important; }
-#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbAt,
-#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbNewQuote {
+#shoutbox#shoutbox.mamsb.mamsb-mobile .mamsb-msg > :is(.sbAt, .sbNewQuote, .mamsb-pm) {
   display: flex !important;
   border: 1px solid var(--sb-border) !important;
   background: var(--sb-bg-tertiary) !important;
@@ -1813,22 +1811,17 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 }
 #shoutbox.mamsb.mamsb-mobile .mamsb-body::before { display: none; } /* no hover buttons to keep clear of */
 
-/* Tap a shout to show its @ / ↩ / ⋮ buttons (larger, for fingers) */
+/* Tap a shout to show its buttons (larger, for fingers) */
 #shoutbox.mamsb.mamsb-mobile .mamsb-msg.mamsb-tapped { background: rgba(255, 255, 255, var(--sb-hover)) !important; }
-#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbAt,
-#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbNewQuote,
-#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sb_menu {
+#shoutbox.mamsb.mamsb-mobile .mamsb-msg > :is(.sbAt, .sbNewQuote, .sb_menu, .mamsb-pm, .mamsb-edit) {
   top: 8px; /* level with the name line */
   height: 32px;
 }
-#shoutbox.mamsb.mamsb-mobile .mamsb-msg.mamsb-tapped > .sbAt,
-#shoutbox.mamsb.mamsb-mobile .mamsb-msg.mamsb-tapped > .sbNewQuote,
-#shoutbox.mamsb.mamsb-mobile .mamsb-msg.mamsb-tapped > .sb_menu {
+#shoutbox.mamsb.mamsb-mobile .mamsb-msg.mamsb-tapped > :is(.sbAt, .sbNewQuote, .sb_menu, .mamsb-pm, .mamsb-edit) {
   opacity: 1;
   pointer-events: auto;
 }
-#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbAt::before,
-#shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sbNewQuote::before { font-size: 17px; }
+#shoutbox.mamsb.mamsb-mobile .mamsb-msg > :is(.sbAt, .sbNewQuote, .mamsb-pm, .mamsb-edit)::before { font-size: 17px; }
 #shoutbox.mamsb.mamsb-mobile .mamsb-msg > .sb_menu svg { width: 5px !important; height: 17px !important; }
 #shoutbox.mamsb.mamsb-mobile #sbMenuMain > ul > li { padding: 12px 16px !important; font-size: 15px; }
 
@@ -1929,6 +1922,40 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   font-family: var(--sb-font) !important;
   font-weight: 600;
   cursor: pointer;
+}
+/* Settings that staff can't change (see shoutMenu) */
+#shoutbox.mamsb.mamsb-staff .mamsb-settings-panel [data-not-staff] { display: none !important; }
+
+/* ---- Which hover buttons a shout shows, and in which slot ----
+   Kept last, and with the ID twice, so these win over the display pins above.
+   With MaM's ⋮ menu (setting on, or staff):  @ ↩ ⋮
+   Without it (.mamsb-lean):  others' shouts @ ↩ ✉, your own ↩ ✎, or just ↩
+   once MaM no longer lets you edit. */
+#shoutbox.mamsb .mamsb-msg > .sb_menu,
+#shoutbox.mamsb .mamsb-msg > .mamsb-pm,
+#shoutbox.mamsb .mamsb-msg > .mamsb-edit { --mamsb-slot: 0; --mamsb-corners: 0 4px 4px 0; }
+#shoutbox.mamsb .mamsb-msg > .sbNewQuote { --mamsb-slot: 1; --mamsb-corners: 0; }
+#shoutbox.mamsb .mamsb-msg > .sbAt { --mamsb-slot: 2; --mamsb-corners: 4px 0 0 4px; }
+#shoutbox.mamsb.mamsb-lean .mamsb-msg.mamsb-own > .sbNewQuote { --mamsb-corners: 4px 0 0 4px; }
+#shoutbox.mamsb.mamsb-lean .mamsb-msg.mamsb-own:not(.mamsb-can-edit) > .sbNewQuote { --mamsb-slot: 0; --mamsb-corners: 4px; }
+
+#shoutbox#shoutbox.mamsb .mamsb-msg > a.mamsb-stand-in, /* the hidden name on "/me" shouts */
+#shoutbox#shoutbox.mamsb .mamsb-msg > .mamsb-edit,
+#shoutbox#shoutbox.mamsb:not(.mamsb-lean) .mamsb-msg > a.mamsb-pm,
+#shoutbox#shoutbox.mamsb.mamsb-lean .mamsb-msg > .sb_menu,
+#shoutbox#shoutbox.mamsb.mamsb-lean .mamsb-msg.mamsb-own > :is(.sbAt, a.mamsb-pm) { display: none !important; }
+#shoutbox#shoutbox.mamsb.mamsb-lean .mamsb-msg:not(.mamsb-own) > a.mamsb-pm,
+#shoutbox#shoutbox.mamsb.mamsb-lean .mamsb-msg.mamsb-own.mamsb-can-edit > .mamsb-edit { display: flex !important; }
+
+/* Mobile view: a tapped shout shows the sender's rank and title beside their
+   name (there's no hover tooltip on a touch screen). From CSS, so it isn't
+   text in the shout. */
+#shoutbox.mamsb.mamsb-mobile .mamsb-msg.mamsb-tapped > .mamsb-nick[data-mamsb-rank]::after {
+  content: attr(data-mamsb-rank);
+  margin-left: 8px;
+  color: var(--sb-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
 }
 `;
 
@@ -2382,7 +2409,8 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 
   // Direct children of a shout that are MaM's or ours; anything else that turns
   // up later (MaM appending to a shout) gets moved into the message body.
-  const SHOUT_PARTS = '.ts, .sb_menu, .sbNewQuote, .sbAt, .mamsb-nick, .mamsb-hide, .mamsb-reply, .mamsb-body';
+  const SHOUT_PARTS =
+    '.ts, .sb_menu, .sbNewQuote, .sbAt, .mamsb-nick, .mamsb-hide, .mamsb-reply, .mamsb-body, .mamsb-pm, .mamsb-edit';
 
   function processShout(shout) {
     if (!SHOUT_ID.test(shout.id)) return;
@@ -2396,6 +2424,17 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 
     const nameLink = [...shout.children].find(isProfileLink);
     if (!nameLink) return;
+    const isAction = shout.classList.contains('action');
+    // "/me" shouts have their name moved into the text (below), but MaM's ⋮
+    // looks for the name link right beside it and does nothing without one.
+    // So leave a hidden copy where the name was.
+    if (isAction) {
+      const standIn = nameLink.cloneNode(true);
+      standIn.classList.add('mamsb-hide', 'mamsb-stand-in');
+      standIn.setAttribute('aria-hidden', 'true');
+      standIn.tabIndex = -1;
+      nameLink.before(standIn);
+    }
     nameLink.classList.add('mamsb-nick');
     addNameTooltip(nameLink);
 
@@ -2426,11 +2465,190 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     shout.append(body);
 
     // "/me" shouts read as one sentence: move the name into the text.
-    if (shout.classList.contains('action')) body.prepend(nameLink);
+    if (isAction) body.prepend(nameLink);
+
+    const dotsButton = shout.querySelector(':scope > .sb_menu'); // MaM's ⋮
+    addShoutButtons(shout, nameLink, dotsButton);
+    addEditedLabel(body, dotsButton);
+    addRank(nameLink, dotsButton);
 
     shout.classList.add('mamsb-msg');
     applyColours(shout);
     applyMention(shout);
+  }
+
+  // ---------------------------------------------------------------------------
+  // What MaM's ⋮ menu offers, without the menu
+  // ---------------------------------------------------------------------------
+  // MaM puts everything its ⋮ menu shows on the ⋮ button itself, when it draws
+  // the shout: data-ee (0 = no editing, 1 = you can edit, 2 = edit and delete,
+  // which only staff get), data-et (when it was edited, in seconds), data-uc
+  // (rank) and data-ut (custom title). The menu is only built from those when
+  // clicked, so the script reads them straight from the button.
+
+  // Shouts whose edit MaM refused (the time limit had passed), by ID, until
+  // the page is reloaded. MaM's data-ee doesn't change once a shout is drawn.
+  const refusedEdits = new Set();
+  let ownUserId = '';
+  let staffSeen = false; // set once a shout lets you delete it
+
+  /** 0 = no editing, 1 = you can edit, 2 = edit and delete (staff). */
+  function editLevel(dotsButton) {
+    return Number(dotsButton?.dataset.ee) || 0;
+  }
+
+  /** ✉ and ✎, shown in place of the ⋮ when MaM's menu is off (see the CSS). */
+  function addShoutButtons(shout, nameLink, dotsButton) {
+    const uid = nameLink.getAttribute('href').match(/\d+/)[0];
+    if (!ownUserId) ownUserId = currentUser().id;
+    const level = editLevel(dotsButton);
+    if (level === 2) staffSeen = true;
+    // Your own shout: by your user ID, or (if the page header wasn't found)
+    // because MaM lets you edit it and you're not staff.
+    shout.classList.toggle('mamsb-own', ownUserId ? uid === ownUserId : level === 1);
+    shout.classList.toggle('mamsb-can-edit', level > 0 && !refusedEdits.has(shout.id));
+
+    const pm = document.createElement('a');
+    pm.className = 'mamsb-pm';
+    pm.href = `/sendmessage.php?receiver=${uid}`;
+    pm.target = '_blank';
+    pm.rel = 'noopener';
+    pm.title = 'Send a PM';
+    pm.setAttribute('aria-label', 'Send a PM');
+
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'mamsb-edit';
+    edit.title = 'Edit';
+    edit.setAttribute('aria-label', 'Edit');
+
+    // After MaM's @, so MaM's quote (which reads the first link in the shout)
+    // still finds its own ↩ first. They have no text of their own either.
+    const after = shout.querySelector(':scope > .sbAt') || dotsButton;
+    if (after) after.after(pm, edit);
+    else nameLink.before(pm, edit);
+  }
+
+  /** "(edited)" after the message, with the time in its tooltip (MaM time, as in its menu). */
+  function addEditedLabel(body, dotsButton) {
+    const editedAt = Number(dotsButton?.dataset.et) || 0;
+    if (editedAt <= 0) return;
+    const time = new Date(editedAt * 1000).toISOString().slice(11, 19);
+    const label = document.createElement('span');
+    label.className = 'mamsb-edited';
+    label.dataset.mamsbEditTime = time;
+    label.title = `Edited ${time}`;
+    body.append(label);
+  }
+
+  /** Rank and custom title, shown beside the name on a tapped shout in mobile view. */
+  function addRank(nameLink, dotsButton) {
+    // MaM writes these straight from its data, so a missing value can arrive
+    // as the word "undefined" or "null".
+    const parts = [dotsButton?.dataset.uc, dotsButton?.dataset.ut]
+      .map((part) => (part || '').trim())
+      .filter((part) => part && part !== 'undefined' && part !== 'null');
+    if (parts.length) nameLink.dataset.mamsbRank = parts.join(' · ');
+  }
+
+  /** Staff keep MaM's ⋮ menu: their extra tools are only in there. */
+  function isStaff() {
+    return (
+      staffSeen ||
+      typeof window.showModNotesOnPage === 'function' ||
+      typeof window.setup_shoutbox_sbbp === 'function'
+    );
+  }
+
+  /** Show MaM's ⋮ menu, or ✉ / ✎ in its place. */
+  function applyMenuMode(root) {
+    const staff = isStaff();
+    root.classList.toggle('mamsb-staff', staff);
+    root.classList.toggle('mamsb-lean', !staff && !settings.shoutMenu);
+  }
+
+  // ✎ works through MaM's own menu, so MaM's edit box, checks and saving are
+  // all unchanged: it opens the menu, clicks Edit and closes the menu again,
+  // all before the page is next drawn, so the menu never shows.
+  const EDIT_ANSWER_MS = 30000; // MaM's own timeout for that request
+  let pendingEdit = null; // { id, until }: the edit MaM is fetching
+  let editFromButton = false; // the edit box being opened came from ✎, not the ⋮ menu
+  let editAnswersWatched = false;
+
+  function editViaMenu(root, shout) {
+    const dotsButton = shout.querySelector(':scope > .sb_menu');
+    const menu = root.querySelector('#sbMenuMain');
+    if (!dotsButton || !menu) return;
+    watchEditAnswers();
+    dotsButton.click(); // MaM builds its menu for this shout
+    const edit = menu.querySelector('#sbEdit');
+    if (edit) {
+      pendingEdit = { id: shout.id.replace('sbid', ''), until: Date.now() + EDIT_ANSWER_MS };
+      editFromButton = true;
+      edit.click(); // MaM fetches the shout and opens its edit box
+    } else {
+      markEditRefused(shout.id);
+    }
+    // A click on the menu's own layer is MaM's "close the menu".
+    if (!menu.classList.contains('hideMe')) menu.click();
+  }
+
+  function markEditRefused(shoutId) {
+    refusedEdits.add(shoutId);
+    document.getElementById(shoutId)?.classList.remove('mamsb-can-edit');
+  }
+
+  /**
+   * When MaM refuses an edit (e.g. the time limit has passed), its answer to
+   * the request it sends when you click Edit says so, and MaM shows that in an
+   * Error box. Listen for that answer, through jQuery's events for the page's
+   * own requests, and hide ✎ on that shout. This sends nothing itself.
+   */
+  function watchEditAnswers() {
+    const jq = window.jQuery;
+    if (editAnswersWatched || typeof jq !== 'function') return;
+    editAnswersWatched = true;
+    jq(document).on('ajaxComplete', (event, xhr, options) => {
+      if (!pendingEdit) return;
+      if (Date.now() > pendingEdit.until) {
+        pendingEdit = null; // MaM gave up waiting by now, so this isn't its answer
+        return;
+      }
+      if (!/\/shoutbox\/load\.php/.test(options?.url || '')) return;
+      const sent = new URLSearchParams(typeof options.data === 'string' ? options.data : '');
+      if (sent.get('id') !== pendingEdit.id) return;
+      const { id } = pendingEdit;
+      pendingEdit = null;
+      const failure = xhr?.responseJSON?.failure;
+      if (typeof failure === 'string' && failure !== '') {
+        editFromButton = false; // no edit box opens
+        markEditRefused(`sbid${id}`);
+      }
+    });
+  }
+
+  function setUpShoutButtons(root) {
+    root.addEventListener('click', (event) => {
+      const edit = event.target.closest('.mamsb-msg > .mamsb-edit');
+      if (edit) {
+        editViaMenu(root, edit.parentElement);
+        return;
+      }
+      // You opened the real ⋮ menu yourself (the script's own clicks on it
+      // aren't "trusted"): an edit from there should go back to the menu.
+      if (event.isTrusted && event.target.closest('.sb_menu')) editFromButton = false;
+      // Cancelling MaM's edit box brings its menu back (it expects you came
+      // from there). When you came from ✎, close it again. MaM's own handler
+      // on the button has run by the time the click reaches here.
+      if (editFromButton && event.target.closest('#sbEditCancel')) {
+        editFromButton = false;
+        const menu = root.querySelector('#sbMenuMain');
+        if (menu && !menu.classList.contains('hideMe')) menu.click();
+      }
+    });
+    // Staff tools come from a separate MaM script that may load after this
+    // one: look again a few times.
+    for (const delay of [1000, 3000, 10000]) setTimeout(() => applyMenuMode(root), delay);
   }
 
   // ---------------------------------------------------------------------------
@@ -2777,6 +2995,13 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     timeEl.mamsbPeekTimer = setTimeout(() => applyTime(timeEl), TIME_PEEK_MS);
   }
 
+  /** "(edited)" → "(edited 17:43:56)" for a moment. */
+  function peekEditTime(label) {
+    label.dataset.mamsbPeek = `edited ${label.dataset.mamsbEditTime}`;
+    clearTimeout(label.mamsbPeekTimer);
+    label.mamsbPeekTimer = setTimeout(() => delete label.dataset.mamsbPeek, TIME_PEEK_MS);
+  }
+
   // Devices with no mouse to hover with (phones, most tablets).
   const noHover = window.matchMedia('(hover: none)');
 
@@ -2787,6 +3012,11 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     const timeEl = target.closest('.mamsb-msg > .ts');
     if (timeEl && mobileViewActive) {
       peekFullTime(timeEl);
+      return;
+    }
+    const editedLabel = target.closest('.mamsb-edited');
+    if (editedLabel) {
+      peekEditTime(editedLabel);
       return;
     }
     // Links, buttons, reply lines and MaM's own controls do their own thing.
@@ -2848,6 +3078,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     'tapped shout': '#sbf .mamsb-msg.mamsb-tapped',
     'tapped ⋮ button': '#sbf .mamsb-msg.mamsb-tapped > .sb_menu',
     'tapped @ button': '#sbf .mamsb-msg.mamsb-tapped > .sbAt',
+    'tapped ✉ button': '#sbf .mamsb-msg.mamsb-tapped > .mamsb-pm',
     '⋮ menu box': '#sbMenuMain > ul',
     '⋮ menu name': '#sbMenuMain #sbun > span',
     'message form': '#sbform',
@@ -3200,6 +3431,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     root.classList.toggle('mamsb-hover-outline', settings.hoverOutline);
     root.classList.toggle('mamsb-input-nick-on', settings.showInputNick);
     root.classList.toggle('mamsb-load-divider-on', settings.loadDivider);
+    applyMenuMode(root);
     root.classList.toggle('mamsb-emoji-on', settings.emojiPicker);
     if (!settings.emojiPicker) emojiPicker.close();
     root.classList.toggle('mamsb-smilies-on', settings.smiliesButton);
@@ -3286,6 +3518,8 @@ html.mamsb-mobile-open body > .ui-autocomplete {
                 data-unit="%"><output></output>
             </label>
             <label data-desktop-only title="Draws a thin border around the shout your mouse is over."><input type="checkbox" data-key="hoverOutline"> Outline the shout under the mouse</label>
+            <label data-not-staff title="Off: each shout has ✉ to send a PM instead, and your own shouts have ✎ while MaM still lets you edit them. Staff always have the menu."><input type="checkbox" data-key="shoutMenu">
+              <span>Show MaM's ⋮ menu on each shout<small class="mamsb-settings-note">In place of the ✉ and ✎ buttons</small></span></label>
           </section>
           <section>
             <h4 class="mamsb-settings-heading">Names</h4>
@@ -3467,6 +3701,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   // ---------------------------------------------------------------------------
   function processAll(root) {
     root.querySelectorAll(SHOUT_SELECTOR).forEach(processShout);
+    applyMenuMode(root); // a shout you can delete means you're staff
     stripeShouts(root);
     applyAllDates(root);
   }
@@ -3526,6 +3761,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     if (!shouts.size && !newDateBreak) return;
 
     shouts.forEach(processShout);
+    applyMenuMode(root);
     stripeShouts(root);
     const clockChanged = learnFromLiveShouts(root, addedShouts);
     if (newDateBreak || clockChanged) applyAllDates(root);
@@ -3701,6 +3937,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 
     setUpReplies(root);
     setUpShoutMenu(root);
+    setUpShoutButtons(root);
     setUpLoadOlder(root);
     setUpSizing(root);
     buildMobileControls(root);
