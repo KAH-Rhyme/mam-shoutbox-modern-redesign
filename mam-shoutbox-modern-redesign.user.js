@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MaM Shoutbox Modern Redesign
 // @namespace    https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign
-// @version      1.2.1
+// @version      1.3.0
 // @description  Restyles the MyAnonamouse shoutbox as a clean, modern dark chat view.
 // @author       KAH-Rhyme
 // @license      MIT
@@ -62,6 +62,8 @@
     emojiPicker: true,
     /** Skin tone for emoji that have one: 0 = default (yellow), 1–5 = light to dark. */
     emojiTone: 0,
+    /** Show a SMILIES button (a searchable smilies picker) in place of MaM's Smilies tab. */
+    smiliesButton: true,
     /** Pressing Esc shrinks a maximised (fullscreen) shoutbox back to normal. */
     escRestoresSize: true,
     /**
@@ -269,8 +271,10 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(560px, calc(100vw - 32px));
-  max-height: min(80vh, 640px);
+  /* Room for three columns of options; placeSettings() narrows it to the
+     shoutbox and stops it short of the message box (it scrolls beyond that). */
+  width: var(--sb-settings-w, min(760px, calc(100vw - 32px)));
+  max-height: var(--sb-settings-max-h, min(80vh, 640px));
   overflow-y: auto;
   padding: 4px 0 8px;
   background: var(--sb-bg-secondary);
@@ -333,6 +337,16 @@
 #shoutbox.mamsb .mamsb-settings-range input { flex: 1; min-width: 0; }
 /* Sub-option, shown only while its parent checkbox is on */
 #shoutbox.mamsb .mamsb-settings-panel .mamsb-settings-sub { padding-left: 34px; }
+/* A short note under an option (e.g. one that also needs a MaM preference) */
+#shoutbox.mamsb .mamsb-settings-panel label:has(.mamsb-settings-note) { align-items: flex-start; }
+#shoutbox.mamsb .mamsb-settings-panel label:has(.mamsb-settings-note) input { margin-top: 2px; }
+#shoutbox.mamsb .mamsb-settings-note {
+  display: block;
+  margin-top: 1px;
+  color: var(--sb-text-muted);
+  font-size: 11.5px;
+  line-height: 1.3;
+}
 #shoutbox.mamsb .mamsb-settings-range { white-space: nowrap; }
 #shoutbox.mamsb .mamsb-settings-panel label[hidden] { display: none !important; }
 #shoutbox.mamsb .mamsb-settings-range output {
@@ -827,7 +841,15 @@
 /* MaM's div[id^="sb"] { overflow: hidden } (meant for shouts) also catches
    #sbform, which would cut off the picker that opens above it. */
 #shoutbox.mamsb #sbform { position: relative !important; overflow: visible !important; }
-#shoutbox.mamsb { --sb-emoji-w: 38px; }
+#shoutbox.mamsb {
+  --sb-emoji-w: 38px;
+  --sb-smilies-w: 80px;
+  /* how much of the box's right end each button takes (0 when turned off) */
+  --sb-emoji-used: 0px;
+  --sb-smilies-used: 0px;
+}
+#shoutbox.mamsb.mamsb-emoji-on { --sb-emoji-used: var(--sb-emoji-w); }
+#shoutbox.mamsb.mamsb-smilies-on { --sb-smilies-used: var(--sb-smilies-w); }
 #shoutbox.mamsb .mamsb-emoji-btn { display: none; }
 #shoutbox#shoutbox.mamsb.mamsb-emoji-on #sbform > .mamsb-emoji-btn {
   position: relative;
@@ -851,7 +873,56 @@
   cursor: pointer;
   transition: color 0.15s;
 }
-#shoutbox.mamsb.mamsb-emoji-on #shbox_text { padding-right: calc(var(--sb-emoji-w) + 2px) !important; }
+#shoutbox.mamsb:is(.mamsb-emoji-on, .mamsb-smilies-on) #shbox_text {
+  padding-right: calc(var(--sb-emoji-used) + var(--sb-smilies-used) + 2px) !important;
+}
+/* SMILIES button: left of the emoji button, inside the box like it. A small
+   outlined label, like the "GIF" button in chat apps. */
+#shoutbox.mamsb .mamsb-smilies-btn { display: none; }
+#shoutbox#shoutbox.mamsb.mamsb-smilies-on #sbform > .mamsb-smilies-btn {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: none;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--sb-smilies-w);
+  height: auto;
+  /* the first button pulls both back over the box's right end */
+  margin: 1px 1px 1px calc(-1 * (var(--sb-smilies-used) + var(--sb-emoji-used)) - 1px) !important;
+  padding: 0 !important;
+  background: none !important;
+  color: var(--sb-text-muted) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-family: var(--sb-font) !important;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+#shoutbox#shoutbox.mamsb.mamsb-smilies-on.mamsb-emoji-on #sbform > .mamsb-smilies-btn { margin-right: 0 !important; }
+#shoutbox#shoutbox.mamsb.mamsb-smilies-on.mamsb-emoji-on #sbform > .mamsb-emoji-btn { margin-left: 0 !important; }
+#shoutbox.mamsb .mamsb-smilies-btn:hover { color: var(--sb-text) !important; }
+#shoutbox.mamsb .mamsb-smilies-btn.is-open { color: var(--sb-accent) !important; }
+#shoutbox.mamsb .mamsb-smilies-btn:focus-visible { outline: 2px solid var(--sb-accent); outline-offset: -3px; }
+#shoutbox.mamsb .mamsb-smilies-chip {
+  padding: 3px 6px;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+#shoutbox.mamsb .mamsb-smilies-short { display: none; }
+/* MaM's Smilies tab is replaced by the button; the rest of the tab bar stays */
+#shoutbox#shoutbox.mamsb.mamsb-smilies-on > :is(#sbMenuTabs, .ui-tabs-nav) > li:is(#t-smilies, :has(> a[href="#smilies"])) {
+  display: none !important;
+}
 #shoutbox.mamsb .mamsb-emoji-btn:hover { color: var(--sb-text) !important; }
 #shoutbox.mamsb .mamsb-emoji-btn.is-open { color: var(--sb-accent) !important; }
 #shoutbox.mamsb .mamsb-emoji-btn:focus-visible { outline: 2px solid var(--sb-accent); outline-offset: -3px; }
@@ -1049,6 +1120,51 @@
 #shoutbox.mamsb .mamsb-emoji-foot-emoji { font-family: var(--sb-emoji-font); font-size: 22px; line-height: 1; }
 #shoutbox.mamsb .mamsb-emoji-foot-name { overflow: hidden; text-overflow: ellipsis; }
 #shoutbox.mamsb .mamsb-emoji-foot-name::first-letter { text-transform: uppercase; }
+
+/* ---- Smilies picker ----
+   Built from the emoji picker's panel (search, list, bottom strip), but as
+   wide as the message box, like MaM's @ / : suggestion lists, with a grid of
+   equal cells. smiliePicker.place() sets its position and size. */
+#shoutbox.mamsb .mamsb-emoji-picker.mamsb-smilie-picker {
+  right: auto;
+  left: var(--sb-smilie-left, 16px);
+  width: var(--sb-smilie-width, 360px);
+}
+#shoutbox.mamsb .mamsb-smilie-picker .mamsb-emoji-list { padding: 6px; }
+#shoutbox.mamsb .mamsb-smilie-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-auto-rows: 64px; /* every row the same height, whatever the smilies */
+}
+#shoutbox.mamsb .mamsb-smilie-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  cursor: pointer;
+}
+#shoutbox.mamsb .mamsb-smilie-item.is-active { background: var(--sb-bg-tertiary); }
+/* Real size when it fits; bigger ones shrink to fit (never enlarged) */
+#shoutbox.mamsb .mamsb-smilie-item img {
+  display: block;
+  width: auto !important;
+  height: auto !important;
+  max-width: calc(100% - 8px) !important;
+  max-height: 56px !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+#shoutbox.mamsb .mamsb-smilie-picker .mamsb-emoji-foot { height: 60px; }
+#shoutbox.mamsb .mamsb-smilie-picker .mamsb-emoji-foot-name::first-letter { text-transform: none; } /* codes exactly as typed */
+#shoutbox.mamsb .mamsb-smilie-foot-pic img {
+  display: block;
+  width: auto !important;
+  height: auto !important;
+  max-width: 160px !important;
+  max-height: 48px !important;
+}
 
 /* MaM's black rounded footer bar under the block */
 #fpShout:has(> #shoutbox.mamsb) > .blockFoot { display: none !important; }
@@ -1589,6 +1705,62 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   color: var(--sb-text-secondary) !important;
   font-size: 18px !important;
 }
+/* "Latest ↓": shown once you've scrolled away from the newest shouts, in the
+   list's corner nearest them (bottom right, or top right if newest-first).
+   Same pill look as "Reset zoom". latestPill.place() positions it. */
+#shoutbox.mamsb .mamsb-latest-pill {
+  position: absolute !important;
+  z-index: 5 !important;
+  display: flex !important;
+  align-items: center;
+  margin: 0 !important;
+  padding: 2px !important;
+  background: var(--sb-bg-tertiary) !important;
+  color: var(--sb-text) !important;
+  border: 1px solid var(--sb-border) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  font-family: var(--sb-font) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap;
+}
+#shoutbox.mamsb .mamsb-latest-pill[hidden] { display: none !important; }
+#shoutbox.mamsb .mamsb-latest-pill button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 !important;
+  padding: 4px 10px !important;
+  background: none !important;
+  color: inherit !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  font: inherit !important;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+#shoutbox.mamsb .mamsb-latest-pill .mamsb-latest-go:hover { background: var(--sb-border) !important; }
+#shoutbox.mamsb .mamsb-latest-pill .mamsb-latest-close {
+  padding: 4px 8px !important;
+  color: var(--sb-text-secondary) !important;
+}
+#shoutbox.mamsb .mamsb-latest-pill .mamsb-latest-close:hover { color: var(--sb-text) !important; }
+#shoutbox.mamsb .mamsb-latest-pill button:focus-visible { outline: 2px solid var(--sb-accent); outline-offset: 1px; }
+#shoutbox.mamsb .mamsb-latest-pill svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#shoutbox.mamsb .mamsb-latest-pill .mamsb-latest-close svg { width: 10px; height: 10px; }
+#shoutbox.mamsb .mamsb-latest-pill.is-up .mamsb-latest-go svg { transform: rotate(180deg); }
+#shoutbox.mamsb.mamsb-mobile .mamsb-latest-pill { font-size: 15px !important; }
+#shoutbox.mamsb.mamsb-mobile .mamsb-latest-pill button { padding: 8px 12px !important; }
 /* Tab bar at the top, message box at the bottom, the list fills the rest.
    This replaces MaM's own fixed heights. */
 #shoutbox.mamsb.mamsb-mobile > :is(#sbMenuTabs, .ui-tabs-nav),
@@ -1714,6 +1886,14 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 #shoutbox.mamsb.mamsb-mobile .mamsb-emoji-grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
 #shoutbox.mamsb.mamsb-mobile .mamsb-emoji-item { height: 44px; font-size: 28px; }
 #shoutbox.mamsb.mamsb-mobile .mamsb-emoji-foot { display: none; } /* no hover or Shift on a phone */
+/* Smilies: the button reads ":-)", the picker is the same full-width sheet */
+#shoutbox.mamsb.mamsb-mobile { --sb-smilies-w: 50px; }
+#shoutbox.mamsb.mamsb-mobile .mamsb-smilies-full { display: none; }
+#shoutbox.mamsb.mamsb-mobile .mamsb-smilies-short { display: inline; }
+#shoutbox.mamsb.mamsb-mobile .mamsb-smilies-chip { padding: 4px 6px; font-size: 13px; letter-spacing: 0.02em; }
+#shoutbox.mamsb.mamsb-mobile .mamsb-emoji-picker.mamsb-smilie-picker { left: 0; width: auto; }
+#shoutbox.mamsb.mamsb-mobile .mamsb-smilie-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); grid-auto-rows: 60px; }
+#shoutbox.mamsb.mamsb-mobile .mamsb-smilie-item img { max-height: 52px !important; }
 
 /* Settings: a full-screen sheet, without the options that don't apply here */
 #shoutbox.mamsb.mamsb-mobile .mamsb-settings-panel {
@@ -1731,6 +1911,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 #shoutbox.mamsb.mamsb-mobile .mamsb-settings-title { padding: 14px 16px 6px; font-size: 16px; }
 #shoutbox.mamsb.mamsb-mobile .mamsb-settings-heading { padding: 12px 16px 4px; }
 #shoutbox.mamsb.mamsb-mobile .mamsb-settings-panel label { padding: 10px 16px; font-size: 15px; }
+#shoutbox.mamsb.mamsb-mobile .mamsb-settings-note { font-size: 13px; }
 #shoutbox.mamsb.mamsb-mobile .mamsb-settings-panel input[type="checkbox"] { width: 20px; height: 20px; }
 #shoutbox.mamsb.mamsb-mobile .mamsb-settings-panel [data-desktop-only] { display: none !important; }
 /* Options that don't apply on a touch screen at all, even outside mobile view */
@@ -1810,15 +1991,23 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     list.scrollTop = newestFirst() ? 0 : list.scrollHeight;
   }
 
+  /** How far (px) the list is scrolled away from its newest shouts. */
+  function distanceFromNewest(list) {
+    return newestFirst() ? list.scrollTop : list.scrollHeight - list.scrollTop - list.clientHeight;
+  }
+
+  /** 'smooth', unless the system asks for reduced motion. */
+  function scrollBehaviour() {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  }
+
   /** Run `change` (which alters the list's size) without losing your place at the newest shouts. */
   function keepingNewestInView(list, change) {
     if (!list.getClientRects().length) {
       change(); // hidden (other tab): nothing to keep in view
       return;
     }
-    const wasAtNewest = newestFirst()
-      ? list.scrollTop < AT_BOTTOM_SLACK
-      : list.scrollHeight - list.scrollTop - list.clientHeight < AT_BOTTOM_SLACK;
+    const wasAtNewest = distanceFromNewest(list) < AT_BOTTOM_SLACK;
     change();
     if (wasAtNewest) scrollToNewest(list);
   }
@@ -2267,7 +2456,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     const listTop = list.getBoundingClientRect().top;
     const targetBox = target.getBoundingClientRect();
     const top = list.scrollTop + (targetBox.top - listTop) - (list.clientHeight - targetBox.height) / 2;
-    list.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    list.scrollTo({ top: Math.max(0, top), behavior: scrollBehaviour() });
 
     // Restart the flash animation: remove the class, force a reflow, add it back.
     target.classList.remove('mamsb-jumped');
@@ -2588,7 +2777,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     timeEl.mamsbPeekTimer = setTimeout(() => applyTime(timeEl), TIME_PEEK_MS);
   }
 
-  /** Taps in mobile view: a shout shows its buttons, a time shows in full. */
+  // Devices with no mouse to hover with (phones, most tablets).
   const noHover = window.matchMedia('(hover: none)');
 
   /** Tapping a shout shows its buttons: in mobile view, and anywhere without a mouse. */
@@ -2665,6 +2854,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     'message input': '#shbox_text',
     'Shout button': '#shout_send',
     'emoji button': '.mamsb-emoji-btn',
+    'smilies button': '.mamsb-smilies-btn',
     'skin tone swatch': '.mamsb-emoji-tones [data-tone="1"]',
   };
   const DIAGNOSTIC_PROPERTIES = [
@@ -3012,6 +3202,15 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     root.classList.toggle('mamsb-load-divider-on', settings.loadDivider);
     root.classList.toggle('mamsb-emoji-on', settings.emojiPicker);
     if (!settings.emojiPicker) emojiPicker.close();
+    root.classList.toggle('mamsb-smilies-on', settings.smiliesButton);
+    if (settings.smiliesButton) {
+      // The Smilies tab is hidden now: don't leave it as the open one.
+      if (root.querySelector('#smilies')?.getClientRects().length) {
+        findTabBar(root)?.querySelector('a[href="#sbf"]')?.click();
+      }
+    } else {
+      smiliePicker.close();
+    }
     root.style.setProperty('--sb-zebra', String(settings.zebraStrength / 100));
     root.style.setProperty('--sb-hover', String(HOVER_SHADE / 100));
     root.style.setProperty('--sb-nick-w', `${settings.nickColumnWidth}px`);
@@ -3090,7 +3289,8 @@ html.mamsb-mobile-open body > .ui-autocomplete {
           </section>
           <section>
             <h4 class="mamsb-settings-heading">Names</h4>
-            <label><input type="checkbox" data-key="showFlags"> Show country flags</label>
+            <label title="MaM only sends flags if they're switched on in your MaM preferences."><input type="checkbox" data-key="showFlags">
+              <span>Show country flags<small class="mamsb-settings-note">Also needs flags on in your MaM preferences</small></span></label>
             <label><input type="checkbox" data-key="showUserIcons"> Show rank &amp; donor icons</label>
             <label title="Lightens (or darkens) a name colour only as much as needed to read it. Colours that already read well are left alone."><input type="checkbox" data-key="fixNickContrast"> Fix name colours that are hard to read</label>
             <label title="Some names, e.g. staff, have a coloured background. When off, that colour is used for the name text instead."><input type="checkbox" data-key="nickBackgrounds"> Keep coloured backgrounds behind names</label>
@@ -3102,6 +3302,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
             <h4 class="mamsb-settings-heading">Message box &amp; full screen</h4>
             <label title="Shows who you're shouting as, at the start of the message box."><input type="checkbox" data-key="showInputNick"> Show your name in the box</label>
             <label title="A button between the message box and Shout that opens a searchable list of emoji."><input type="checkbox" data-key="emojiPicker"> Emoji button</label>
+            <label title="A SMILIES button next to the emoji button opens a searchable grid of MaM's smilies. Off: MaM's Smilies tab instead."><input type="checkbox" data-key="smiliesButton"> Smilies button (replaces the Smilies tab)</label>
             <label data-desktop-only title="After using MaM's full-screen button, press Esc to shrink the shoutbox back."><input type="checkbox" data-key="escRestoresSize"> Press Esc to leave full-screen view</label>
             <label title="A touch-friendly layout when the shoutbox is full screen: bigger text and buttons, and the message box stays above the keyboard.">Mobile view
               <select data-key="mobileView">
@@ -3160,11 +3361,36 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       showDependentOptions();
     };
 
+    /**
+     * As wide as three columns of options, but no wider than the shoutbox, and
+     * no taller than the space down to the message box (or to the bottom of
+     * the shoutbox, if the message box is at the top). Mobile view uses a
+     * full-screen sheet instead.
+     */
+    const SETTINGS_MAX_W = 760;
+    const SETTINGS_MIN_H = 200;
+    const placeSettings = () => {
+      if (panel.hidden || mobileViewActive) return;
+      const rootBox = root.getBoundingClientRect();
+      const width = Math.min(SETTINGS_MAX_W, rootBox.width - 24, window.innerWidth - 32);
+      panel.style.setProperty('--sb-settings-w', `${Math.round(width)}px`);
+      const top = panel.getBoundingClientRect().top;
+      const formBox = root.querySelector('#sbform')?.getBoundingClientRect();
+      const bottom = formBox && formBox.top > top ? formBox.top : rootBox.bottom;
+      const height = Math.max(SETTINGS_MIN_H, bottom - top - 8);
+      panel.style.setProperty('--sb-settings-max-h', `${Math.round(height)}px`);
+    };
+    window.addEventListener('resize', placeSettings);
+    new ResizeObserver(placeSettings).observe(root);
+
     const setOpen = (open) => {
       panel.hidden = !open;
       button.setAttribute('aria-expanded', String(open));
       button.classList.toggle('is-open', open);
-      if (open) fillControls();
+      if (open) {
+        fillControls();
+        placeSettings();
+      }
     };
 
     button.addEventListener('click', () => setOpen(panel.hidden));
@@ -3268,6 +3494,15 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     for (let i = shouts.length - 2; i >= 0; i--) {
       if (!striped(shouts[i]) && striped(shouts[i + 1])) setStripe(shouts[i], !isAlt(shouts[i + 1]));
     }
+  }
+
+  // Parts of the shoutbox that never contain shouts: the script's own panels
+  // and pills, and MaM's Smilies tab.
+  const OWN_PARTS = '.mamsb-emoji-picker, .mamsb-settings, .mamsb-latest-pill, .mamsb-zoom-pill, #smilies';
+
+  function isInOwnParts(node) {
+    const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    return Boolean(element?.closest(OWN_PARTS));
   }
 
   function onShoutboxMutations(mutations, root) {
@@ -3458,6 +3693,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     buildSettingsPanel(root);
     // Before setUpSizing: its Esc handler (leave full screen) must come after ours.
     emojiPicker.build(root);
+    smiliePicker.build(root); // after the emoji button, so it can sit to its left
     suggestionLists.setUp(root);
 
     const input = root.querySelector('#shbox_text');
@@ -3469,6 +3705,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     setUpSizing(root);
     buildMobileControls(root);
     zoomPill.build(root);
+    latestPill.build(root);
     root.addEventListener('click', (event) => onMobileTap(root, event));
     updateMobileView(root); // in case the page loaded already full screen
     fitPageToScreen();
@@ -3479,7 +3716,10 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     // Keep "Today" / "Yesterday" right if the page stays open past midnight.
     setInterval(() => applyAllDates(root), DATE_REFRESH_MS);
     const shoutObserver = new MutationObserver((mutations) => {
-      if (mutationGuard.allow()) onShoutboxMutations(mutations, root);
+      // The pickers, Settings and pills change all the time as you use them,
+      // and MaM's Smilies tab holds no shouts: don't let those count.
+      const relevant = mutations.filter((mutation) => !isInOwnParts(mutation.target));
+      if (relevant.length && mutationGuard.allow()) onShoutboxMutations(relevant, root);
     });
     const mutationGuard = new LoopGuard('restyling shouts', MUTATION_LOOP_LIMIT, () => {
       shoutObserver.disconnect();
@@ -3489,7 +3729,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   }
 
   // ---------------------------------------------------------------------------
-  // Emoji picker (the smiley button between the message box and Shout)
+  // Emoji picker: which emoji to offer (the ☺ button in the message box)
   // ---------------------------------------------------------------------------
   // Everything it needs is in this script: the emoji list is the EMOJI DATA
   // block below, and emoji are drawn with the system's own emoji font. It loads
@@ -3613,7 +3853,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 
     /** Is this emoji drawn as one picture (not falling apart into pieces)? */
     drawsAsOne(emoji) {
-      if ([...emoji.replace(/️/g, '')].length === 1) return true; // nothing to fall apart
+      if ([...emoji.replace(/\uFE0F/g, '')].length === 1) return true; // nothing to fall apart
       try {
         if (!this.context) {
           this.context = document.createElement('canvas').getContext('2d');
@@ -3635,7 +3875,260 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   /** Lower-case words, for searching. */
   const searchWords = (text) => text.toLowerCase().split(/[\s_:,]+/).filter(Boolean);
 
+  // ---------------------------------------------------------------------------
+  // What the emoji and smilies pickers have in common
+  // ---------------------------------------------------------------------------
+  // Both are a panel by the message box: a search box, a scrolling grid of
+  // items and a strip at the bottom naming the highlighted one. Each picker
+  // object copies these methods in (...pickerBase) and adds its own build(),
+  // open(), place(), buildList(), filter(), setActive() and pick(). Its own
+  // state (items, active, …) is declared in the picker itself, not here, so the
+  // two never share it.
+  const PICK_SEVERAL_HINT = 'Shift-click or Shift+Enter to add several';
+  const PICKER_MIN_HEIGHT = 160; // px
+
+  /** On touch screens a picker waits for a tap on its search box: focusing it would open the keyboard over half the list. */
+  function canFocusSearch() {
+    return !mobileViewActive && !coarsePointer.matches;
+  }
+
+  const pickerBase = {
+    /** The event handling both pickers share. `itemSelector` matches one item in the grid. */
+    wireUp(input, itemSelector) {
+      const { panel, button, search, list } = this;
+      button.addEventListener('click', () => (panel.hidden ? this.open() : this.close()));
+      input.addEventListener('focus', () => {
+        this.inputUsed = true;
+      });
+
+      search.addEventListener('input', () => {
+        this.filter();
+        this.arrowKeysMoveInList = false;
+        this.setActive(search.value.trim() ? this.visibleItems()[0] : null);
+      });
+      search.addEventListener('keydown', (event) => this.onSearchKey(event));
+      // × clears the search and leaves you in the box to type a new one.
+      panel.querySelector('.mamsb-emoji-clear').addEventListener('click', () => {
+        search.value = '';
+        this.filter();
+        this.arrowKeysMoveInList = false;
+        this.setActive(null);
+        list.scrollTop = 0;
+        search.focus({ preventScroll: true });
+      });
+
+      // Hovering highlights (and names) an item; clicking picks it.
+      list.addEventListener('mousemove', (event) => {
+        const el = event.target.closest(itemSelector);
+        if (el && el !== this.active?.el) this.setActive(this.itemFor(el), { scroll: false });
+      });
+      list.addEventListener('click', (event) => {
+        const el = event.target.closest(itemSelector);
+        if (el) this.pick(this.itemFor(el), event.shiftKey);
+      });
+
+      // Keys typed in the picker are the picker's: don't let MaM's own
+      // keyboard handlers on the message box area see them. Esc closes it.
+      panel.addEventListener('keydown', (event) => {
+        event.stopPropagation();
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          this.close({ backToInput: true });
+        }
+      });
+      // Esc while the focus is somewhere else (e.g. back in the message box).
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !panel.hidden && !event.defaultPrevented) {
+          event.preventDefault(); // handled: don't also leave full-screen view
+          this.close({ backToInput: true });
+        }
+      });
+      document.addEventListener('click', (event) => {
+        if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) this.close();
+      });
+
+      // Keep it the right size as the shoutbox changes (window resized, on-screen
+      // keyboard opening, mobile view switched on or off).
+      const replace = () => {
+        if (!panel.hidden) this.place();
+      };
+      new ResizeObserver(replace).observe(this.root);
+      window.addEventListener('resize', replace);
+    },
+
+    /** Show the panel with an empty search. Each picker's open() gets its list ready first. */
+    show() {
+      this.search.value = '';
+      this.filter();
+      this.setActive(null);
+      this.arrowKeysMoveInList = false;
+      this.panel.hidden = false;
+      this.button.setAttribute('aria-expanded', 'true');
+      this.button.classList.add('is-open');
+      this.place();
+      this.list.scrollTop = 0;
+      if (canFocusSearch()) this.search.focus({ preventScroll: true });
+    },
+
+    close({ backToInput = false } = {}) {
+      if (!this.panel || this.panel.hidden) return;
+      this.panel.hidden = true;
+      this.button.setAttribute('aria-expanded', 'false');
+      this.button.classList.remove('is-open');
+      if (backToInput) this.root.querySelector('#shbox_text')?.focus({ preventScroll: true });
+    },
+
+    /**
+     * Fit the panel's height into the shoutbox: above the message box (or
+     * below it, if MaM's "Text and Smilies Entry: top" puts the box above the
+     * list), at most `maxHeight` on desktop. Returns the message box area's box.
+     */
+    sizeToShoutbox(maxHeight) {
+      const formBox = this.panel.parentElement.getBoundingClientRect();
+      const rootBox = this.root.getBoundingClientRect();
+      const listBox = this.root.querySelector('#sbf')?.getBoundingClientRect();
+      const below = Boolean(listBox) && formBox.top < listBox.top;
+      this.panel.classList.toggle('is-below', below);
+      const room = below ? rootBox.bottom - formBox.bottom : formBox.top - rootBox.top;
+      const wanted = mobileViewActive ? rootBox.height * 0.55 : maxHeight;
+      const height = Math.max(PICKER_MIN_HEIGHT, Math.min(wanted, room - (mobileViewActive ? 0 : 8)));
+      this.panel.style.setProperty('--sb-emoji-h', `${Math.round(height)}px`);
+      return formBox;
+    },
+
+    itemFor(el) {
+      return this.items[Number(el.dataset.index)];
+    },
+
+    visibleItems() {
+      return this.items.filter((item) => !item.el.hidden);
+    },
+
+    /** Mark `item` as the highlighted one (null: none). Each picker's setActive() also fills in its bottom strip. */
+    highlight(item) {
+      this.column = null;
+      this.active?.el.classList.remove('is-active');
+      this.active?.el.removeAttribute('aria-selected');
+      this.active = item || null;
+      if (item) {
+        item.el.classList.add('is-active');
+        item.el.setAttribute('aria-selected', 'true');
+        this.search.setAttribute('aria-activedescendant', item.el.id);
+      } else {
+        this.search.removeAttribute('aria-activedescendant');
+      }
+      this.panel.querySelector('.mamsb-emoji-foot').classList.toggle('is-hint', !item);
+    },
+
+    /** Scroll the list (only the list) to show `item`, keeping `clearance` px clear at the top (for a sticky heading). */
+    scrollToItem(item, clearance = 0) {
+      const list = this.list;
+      const top = item.el.offsetTop;
+      const bottom = top + item.el.offsetHeight;
+      if (top - clearance < list.scrollTop) list.scrollTop = top - clearance;
+      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+    },
+
+    /**
+     * Keys in the search box. ↑ ↓ always move through the grid. ← → move the
+     * text cursor while you're typing, and move through the grid once you've
+     * started using ↑ ↓ (or if the search box is empty). Enter picks the
+     * highlighted item (or the first), Shift+Enter keeps the picker open.
+     */
+    onSearchKey(event) {
+      const visible = this.visibleItems();
+      const move = (step) => {
+        event.preventDefault();
+        this.arrowKeysMoveInList = true;
+        if (!visible.length) return;
+        if (!this.active || !visible.includes(this.active)) {
+          this.setActive(visible[0]);
+          return;
+        }
+        if (step === 'up' || step === 'down') {
+          // setActive() forgets the column, so carry it across.
+          const column = this.column ?? this.active.el.offsetLeft;
+          this.setActive(this.rowNeighbour(visible, step, column));
+          this.column = column;
+        } else {
+          const index = visible.indexOf(this.active);
+          this.setActive(visible[clamp(index + step, 0, visible.length - 1)]);
+        }
+      };
+      switch (event.key) {
+        case 'ArrowDown':
+          move('down');
+          break;
+        case 'ArrowUp':
+          move('up');
+          break;
+        case 'ArrowLeft':
+        case 'ArrowRight':
+          if (this.arrowKeysMoveInList || !this.search.value) move(event.key === 'ArrowLeft' ? -1 : 1);
+          break;
+        case 'Enter': {
+          event.preventDefault();
+          const item = this.active && !this.active.el.hidden ? this.active : visible[0];
+          if (item) this.pick(item, event.shiftKey);
+          break;
+        }
+        default:
+      }
+    },
+
+    /** The item in the next row up / down whose position is closest to `column` (px from the left). */
+    rowNeighbour(visible, direction, column) {
+      const index = visible.indexOf(this.active);
+      const top = this.active.el.offsetTop;
+      const down = direction === 'down';
+      let rowTop = null;
+      let best = this.active;
+      for (let i = index + (down ? 1 : -1); i >= 0 && i < visible.length; i += down ? 1 : -1) {
+        const el = visible[i].el;
+        if (rowTop === null) {
+          if (down ? el.offsetTop <= top : el.offsetTop >= top) continue; // still on this row
+          rowTop = el.offsetTop;
+        } else if (el.offsetTop !== rowTop) {
+          break; // past the row
+        }
+        if (best === this.active || Math.abs(el.offsetLeft - column) < Math.abs(best.el.offsetLeft - column)) {
+          best = visible[i];
+        }
+      }
+      return best;
+    },
+
+    /**
+     * Type into the message box: where you left the cursor, or at the end if
+     * you haven't been in the box yet. `makeText(value, start, end)` returns
+     * what to insert there. Then close the picker, unless `keepOpen`.
+     */
+    typeIntoMessageBox(makeText, keepOpen) {
+      const input = this.root.querySelector('#shbox_text');
+      if (!input) return;
+      let start = input.value.length;
+      let end = start;
+      if (this.inputUsed && input.selectionStart !== null) {
+        start = input.selectionStart;
+        end = input.selectionEnd;
+      }
+      const text = makeText(input.value, start, end);
+      const limit = input.maxLength > 0 ? input.maxLength : Infinity;
+      if (input.value.length - (end - start) + text.length > limit) return; // wouldn't fit
+      input.setRangeText(text, start, end, 'end');
+      this.inputUsed = true;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      if (!keepOpen) this.close({ backToInput: true });
+      else if (canFocusSearch()) this.search.focus({ preventScroll: true });
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // Emoji picker: the panel
+  // ---------------------------------------------------------------------------
   const emojiPicker = {
+    ...pickerBase,
+    MAX_HEIGHT: 380, // px, on desktop
     root: null,
     button: null,
     panel: null,
@@ -3646,9 +4139,10 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     items: [], // { el, emoji, name, words, tones } for every emoji shown
     built: false, // the list is built the first time the picker opens
     active: null, // the highlighted item
-    arrowKeysMoveInList: false, // see onSearchKey
-    column: null, // ↑ ↓ keep to this column, even through a shorter row
-    inputUsed: false, // whether you've been in the message box yet
+    arrowKeysMoveInList: false,
+    column: null,
+    inputUsed: false,
+    shownTone: 0, // the skin tone the grid currently shows
 
     build(root) {
       const form = root.querySelector('#sbform');
@@ -3708,37 +4202,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       this.list = panel.querySelector('.mamsb-emoji-list');
       this.footEmoji = panel.querySelector('.mamsb-emoji-foot-emoji');
       this.footName = panel.querySelector('.mamsb-emoji-foot-name');
-
-      button.addEventListener('click', () => (panel.hidden ? this.open() : this.close()));
-      input.addEventListener('focus', () => {
-        this.inputUsed = true;
-      });
-
-      this.search.addEventListener('input', () => {
-        this.filter();
-        this.arrowKeysMoveInList = false;
-        this.setActive(this.search.value.trim() ? this.visibleItems()[0] : null);
-      });
-      // × clears the search and leaves you in the box to type a new one.
-      panel.querySelector('.mamsb-emoji-clear').addEventListener('click', () => {
-        this.search.value = '';
-        this.filter();
-        this.arrowKeysMoveInList = false;
-        this.setActive(null);
-        this.list.scrollTop = 0;
-        this.search.focus({ preventScroll: true });
-      });
-      this.search.addEventListener('keydown', (event) => this.onSearchKey(event));
-
-      // Hovering highlights (and names) an emoji; clicking picks it.
-      this.list.addEventListener('mousemove', (event) => {
-        const el = event.target.closest('.mamsb-emoji-item');
-        if (el && el !== this.active?.el) this.setActive(this.itemFor(el), { scroll: false });
-      });
-      this.list.addEventListener('click', (event) => {
-        const el = event.target.closest('.mamsb-emoji-item');
-        if (el) this.pick(this.itemFor(el), event.shiftKey);
-      });
+      this.wireUp(input, '.mamsb-emoji-item');
 
       const tones = panel.querySelector('.mamsb-emoji-tones');
       tones.addEventListener('click', (event) => {
@@ -3752,77 +4216,18 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         const tone = (settings.emojiTone + step + SKIN_TONES.length) % SKIN_TONES.length;
         this.setTone(tone, tones.querySelector(`[data-tone="${tone}"]`));
       });
-
-      // Keys typed in the picker are the picker's: don't let MaM's own
-      // keyboard handlers on the message box area see them. Esc closes it.
-      panel.addEventListener('keydown', (event) => {
-        event.stopPropagation();
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          this.close({ backToInput: true });
-        }
-      });
-      // Esc while the focus is somewhere else (e.g. back in the message box).
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !panel.hidden && !event.defaultPrevented) {
-          event.preventDefault(); // handled: don't also leave full-screen view
-          this.close({ backToInput: true });
-        }
-      });
-      document.addEventListener('click', (event) => {
-        if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) this.close();
-      });
-      // Keep it the right size as the shoutbox changes (window resized, on-screen
-      // keyboard opening, mobile view switched on or off).
-      new ResizeObserver(() => {
-        if (!panel.hidden) this.place();
-      }).observe(root);
-      window.addEventListener('resize', () => {
-        if (!panel.hidden) this.place();
-      });
     },
 
     open() {
       if (!this.panel || !settings.emojiPicker) return;
+      smiliePicker.close();
       if (!this.built) this.buildList();
       this.showTone();
-      this.search.value = '';
-      this.filter();
-      this.setActive(null);
-      this.arrowKeysMoveInList = false;
-      this.panel.hidden = false;
-      this.button.setAttribute('aria-expanded', 'true');
-      this.button.classList.add('is-open');
-      this.place();
-      this.list.scrollTop = 0;
-      // On touch screens, wait for a tap on the search box: focusing it would
-      // open the on-screen keyboard over half the list.
-      if (!mobileViewActive && !coarsePointer.matches) this.search.focus({ preventScroll: true });
+      this.show();
     },
 
-    close({ backToInput = false } = {}) {
-      if (!this.panel || this.panel.hidden) return;
-      this.panel.hidden = true;
-      this.button.setAttribute('aria-expanded', 'false');
-      this.button.classList.remove('is-open');
-      if (backToInput) this.root.querySelector('#shbox_text')?.focus({ preventScroll: true });
-    },
-
-    /**
-     * Fit the picker into the shoutbox: above the message box (or below it, if
-     * MaM's "Text and Smilies Entry: top" puts the box above the list).
-     */
     place() {
-      const form = this.panel.parentElement;
-      const rootBox = this.root.getBoundingClientRect();
-      const formBox = form.getBoundingClientRect();
-      const listBox = this.root.querySelector('.sbf')?.getBoundingClientRect();
-      const below = Boolean(listBox) && formBox.top < listBox.top;
-      this.panel.classList.toggle('is-below', below);
-      const room = below ? rootBox.bottom - formBox.bottom : formBox.top - rootBox.top;
-      const wanted = mobileViewActive ? rootBox.height * 0.55 : 380;
-      const height = Math.max(160, Math.min(wanted, room - (mobileViewActive ? 0 : 8)));
-      this.panel.style.setProperty('--sb-emoji-h', `${Math.round(height)}px`);
+      this.sizeToShoutbox(this.MAX_HEIGHT);
     },
 
     /** Build the grid, leaving out emoji this device can't draw. */
@@ -3830,11 +4235,10 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       const { version: maxVersion, flags } = emojiSupport.support();
       const fragment = document.createDocumentFragment();
       let grid = null;
-      let section = null;
       let sectionCount = 0;
       for (const row of emojiData()) {
         if (typeof row === 'string') {
-          section = document.createElement('div');
+          const section = document.createElement('div');
           section.className = 'mamsb-emoji-section';
           section.setAttribute('role', 'group');
           const heading = document.createElement('div');
@@ -3873,15 +4277,8 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         if (!empty.querySelector('.mamsb-emoji-item')) empty.remove();
       }
       this.list.append(fragment);
+      this.shownTone = 0; // the grid starts with the default (yellow) emoji
       this.built = true;
-    },
-
-    itemFor(el) {
-      return this.items[Number(el.dataset.index)];
-    },
-
-    visibleItems() {
-      return this.items.filter((item) => !item.el.hidden);
     },
 
     /** Show only emoji whose name or search words start with every word typed. */
@@ -3905,132 +4302,21 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       if (searching) this.list.scrollTop = 0;
     },
 
-    /** Highlight an item (null: none) and name it in the footer. */
+    /** Highlight an item (null: none) and name it in the bottom strip. */
     setActive(item, { scroll = true } = {}) {
-      this.column = null;
-      this.active?.el.classList.remove('is-active');
-      this.active?.el.removeAttribute('aria-selected');
-      this.active = item || null;
-      if (item) {
-        item.el.classList.add('is-active');
-        item.el.setAttribute('aria-selected', 'true');
-        this.search.setAttribute('aria-activedescendant', item.el.id);
-        this.footEmoji.textContent = item.el.textContent;
-        this.footName.textContent = item.name;
-        if (scroll) this.scrollToItem(item);
-      } else {
-        this.search.removeAttribute('aria-activedescendant');
-        this.footEmoji.textContent = '';
-        this.footName.textContent = 'Shift-click or Shift+Enter to add several';
+      this.highlight(item);
+      this.footEmoji.textContent = item ? item.el.textContent : '';
+      this.footName.textContent = item ? item.name : PICK_SEVERAL_HINT;
+      if (item && scroll) {
+        // Keep it clear of the section heading stuck to the top of the list.
+        const heading = this.list.querySelector('.mamsb-emoji-section:not([hidden]) .mamsb-emoji-heading');
+        this.scrollToItem(item, heading?.offsetHeight || 0);
       }
-      this.panel.querySelector('.mamsb-emoji-foot').classList.toggle('is-hint', !item);
-    },
-
-    /** Scroll the list (only the list) so the item is clear of the sticky heading. */
-    scrollToItem(item) {
-      const list = this.list;
-      const heading = this.list.querySelector('.mamsb-emoji-section:not([hidden]) .mamsb-emoji-heading')?.offsetHeight || 0;
-      const top = item.el.offsetTop;
-      const bottom = top + item.el.offsetHeight;
-      if (top - heading < list.scrollTop) list.scrollTop = top - heading;
-      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
-    },
-
-    /**
-     * Keys in the search box. ↑ ↓ always move through the emoji. ← → move the
-     * text cursor while you're typing, and move through the emoji once you've
-     * started using ↑ ↓ (or if the search box is empty).
-     */
-    onSearchKey(event) {
-      const visible = this.visibleItems();
-      const move = (step) => {
-        event.preventDefault();
-        this.arrowKeysMoveInList = true;
-        if (!visible.length) return;
-        if (!this.active || !visible.includes(this.active)) {
-          this.setActive(visible[0]);
-          return;
-        }
-        if (step === 'up' || step === 'down') {
-          this.column ??= this.active.el.offsetLeft;
-          const column = this.column;
-          this.setActive(this.rowNeighbour(visible, step));
-          this.column = column;
-        } else {
-          this.setActive(this.sideNeighbour(visible, step));
-        }
-      };
-      switch (event.key) {
-        case 'ArrowDown':
-          move('down');
-          break;
-        case 'ArrowUp':
-          move('up');
-          break;
-        case 'ArrowLeft':
-        case 'ArrowRight':
-          if (this.arrowKeysMoveInList || !this.search.value) move(event.key === 'ArrowLeft' ? -1 : 1);
-          break;
-        case 'Enter': {
-          event.preventDefault();
-          const item = this.active && !this.active.el.hidden ? this.active : visible[0];
-          if (item) this.pick(item, event.shiftKey);
-          break;
-        }
-        default:
-      }
-    },
-
-    sideNeighbour(visible, step) {
-      const index = visible.indexOf(this.active);
-      return visible[clamp(index + step, 0, visible.length - 1)];
-    },
-
-    /** The emoji in the next row up / down that's closest in position. */
-    rowNeighbour(visible, direction) {
-      const index = visible.indexOf(this.active);
-      const top = this.active.el.offsetTop;
-      const left = this.column ?? this.active.el.offsetLeft;
-      const down = direction === 'down';
-      let rowTop = null;
-      let best = this.active;
-      for (let i = index + (down ? 1 : -1); i >= 0 && i < visible.length; i += down ? 1 : -1) {
-        const el = visible[i].el;
-        if (rowTop === null) {
-          if (down ? el.offsetTop <= top : el.offsetTop >= top) continue; // still on this row
-          rowTop = el.offsetTop;
-        } else if (el.offsetTop !== rowTop) {
-          break; // past the row
-        }
-        if (best === this.active || Math.abs(el.offsetLeft - left) < Math.abs(best.el.offsetLeft - left)) {
-          best = visible[i];
-        }
-      }
-      return best;
     },
 
     /** Type the emoji into the message box. Shift keeps the picker open. */
     pick(item, keepOpen) {
-      const input = this.root.querySelector('#shbox_text');
-      if (!input) return;
-      const text = item.el.textContent;
-      // Where you left the cursor, or at the end if you haven't been in the box yet.
-      let start = input.value.length;
-      let end = start;
-      if (this.inputUsed && input.selectionStart !== null) {
-        start = input.selectionStart;
-        end = input.selectionEnd;
-      }
-      const limit = input.maxLength > 0 ? input.maxLength : Infinity;
-      if (input.value.length - (end - start) + text.length > limit) return; // wouldn't fit
-      input.setRangeText(text, start, end, 'end');
-      this.inputUsed = true;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      if (keepOpen) {
-        if (!mobileViewActive && !coarsePointer.matches) this.search.focus({ preventScroll: true });
-      } else {
-        this.close({ backToInput: true });
-      }
+      this.typeIntoMessageBox(() => item.el.textContent, keepOpen);
     },
 
     setTone(tone, swatch) {
@@ -4048,10 +4334,323 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         swatch.setAttribute('aria-checked', String(chosen));
         swatch.tabIndex = chosen ? 0 : -1;
       }
+      if (tone === this.shownTone) return; // the grid already shows it
+      this.shownTone = tone;
       for (const item of this.items) {
         if (item.tones) item.el.textContent = tone ? item.tones[tone - 1] : item.emoji;
       }
       if (this.active) this.footEmoji.textContent = this.active.el.textContent;
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // Smilies picker (the SMILIES button, replacing MaM's Smilies tab)
+  // ---------------------------------------------------------------------------
+  // A searchable grid of MaM's smilies, read from the (hidden) Smilies tab so
+  // it always matches MaM's own list and order. The pictures are MaM's own
+  // files, the same ones that tab uses.
+  //
+  // MaM only fills the Smilies tab the first time it's opened. With the tab
+  // hidden, the picker asks MaM to do that (the same as clicking the tab),
+  // and fills in as soon as the smilies arrive.
+  const smiliePicker = {
+    ...pickerBase,
+    MAX_HEIGHT: 400, // px, on desktop
+    LOAD_TIMEOUT_MS: 8000, // stop saying "Loading…" after this
+    loadStarted: 0, // when we last asked MaM for its smilies
+    root: null,
+    button: null,
+    panel: null,
+    search: null,
+    list: null,
+    footPic: null,
+    footName: null,
+    items: [], // { el, code, search }
+    built: false,
+    active: null,
+    arrowKeysMoveInList: false,
+    column: null,
+    inputUsed: false,
+
+    build(root) {
+      const form = root.querySelector('#sbform');
+      const send = form?.querySelector('#shout_send');
+      const input = root.querySelector('#shbox_text');
+      if (!send || !input || form.querySelector('.mamsb-smilies-btn')) return;
+      this.root = root;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'mamsb-smilies-btn';
+      button.title = 'Smilies';
+      button.setAttribute('aria-label', 'Smilies');
+      button.setAttribute('aria-haspopup', 'dialog');
+      button.setAttribute('aria-expanded', 'false');
+      button.innerHTML =
+        '<span class="mamsb-smilies-chip" aria-hidden="true">' +
+        '<span class="mamsb-smilies-full">Smilies</span><span class="mamsb-smilies-short">:-)</span>' +
+        '</span>';
+      // Left of the emoji button (or of Shout, if there isn't one).
+      (form.querySelector('.mamsb-emoji-btn') || send).before(button);
+      this.button = button;
+
+      const panel = document.createElement('div');
+      // Shares the emoji picker's panel styles (.mamsb-emoji-*).
+      panel.className = 'mamsb-emoji-picker mamsb-smilie-picker';
+      panel.setAttribute('role', 'dialog');
+      panel.setAttribute('aria-label', 'Smilies');
+      panel.hidden = true;
+      panel.innerHTML = `
+        <div class="mamsb-emoji-head">
+          <div class="mamsb-emoji-search-wrap">
+            <input type="search" class="mamsb-emoji-search" placeholder="Search smilies" aria-label="Search smilies"
+              role="combobox" aria-expanded="true" aria-controls="mamsb-smilie-list" aria-autocomplete="list"
+              autocomplete="off" spellcheck="false">
+            <button type="button" class="mamsb-emoji-clear" title="Clear search" aria-label="Clear search" hidden>
+              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" /></svg>
+            </button>
+          </div>
+        </div>
+        <div class="mamsb-emoji-list" id="mamsb-smilie-list" role="listbox" aria-label="Smilies">
+          <div class="mamsb-smilie-grid"></div>
+        </div>
+        <div class="mamsb-emoji-empty" hidden>No smilies found</div>
+        <div class="mamsb-emoji-foot" aria-hidden="true">
+          <span class="mamsb-smilie-foot-pic"></span>
+          <span class="mamsb-emoji-foot-name"></span>
+        </div>`;
+      form.append(panel);
+      this.panel = panel;
+      this.search = panel.querySelector('.mamsb-emoji-search');
+      this.list = panel.querySelector('.mamsb-emoji-list');
+      this.footPic = panel.querySelector('.mamsb-smilie-foot-pic');
+      this.footName = panel.querySelector('.mamsb-emoji-foot-name');
+      this.wireUp(input, '.mamsb-smilie-item');
+
+      // MaM fills (or refills) the Smilies tab: pick up the new list.
+      const tab = root.querySelector('#smilies');
+      if (tab) {
+        new MutationObserver(() => {
+          if (!panel.hidden) this.refresh();
+        }).observe(tab, { childList: true, subtree: true });
+      }
+    },
+
+    /** Smilies currently in MaM's Smilies tab. */
+    sources() {
+      return this.root.querySelectorAll('#smilies img[data-ssps]');
+    },
+
+    /**
+     * Ask MaM to fill its Smilies tab, as clicking the tab would: open it and
+     * switch straight back, in one go so nothing visibly changes.
+     */
+    requestLoad() {
+      // Once at a time; ask again if an earlier request never arrived.
+      if (this.loadStarted && Date.now() - this.loadStarted < this.LOAD_TIMEOUT_MS) return;
+      this.loadStarted = Date.now();
+      // Change "Loading smilies…" to "No smilies found" if nothing arrives.
+      setTimeout(() => {
+        if (!this.panel.hidden) this.filter();
+      }, this.LOAD_TIMEOUT_MS);
+      const nav = findTabBar(this.root);
+      const smiliesTab = nav?.querySelector('a[href="#smilies"]');
+      const shoutsTab = nav?.querySelector('a[href="#sbf"]');
+      if (!smiliesTab || !shoutsTab) return;
+      smiliesTab.click();
+      shoutsTab.click();
+    },
+
+    /** Rebuild if MaM's list has changed, and update what's shown. */
+    refresh() {
+      if (this.sources().length === this.items.length) return;
+      this.buildList();
+      this.filter();
+      this.setActive(this.search.value.trim() ? this.visibleItems()[0] : null);
+    },
+
+    open() {
+      if (!this.panel || !settings.smiliesButton) return;
+      emojiPicker.close();
+      if (!this.sources().length) this.requestLoad();
+      if (!this.built || this.sources().length !== this.items.length) this.buildList();
+      this.show();
+    },
+
+    /** As wide as the message box and lined up with it. */
+    place() {
+      const formBox = this.sizeToShoutbox(this.MAX_HEIGHT);
+      const input = this.root.querySelector('#shbox_text');
+      if (!input) return;
+      const inputBox = input.getBoundingClientRect();
+      this.panel.style.setProperty('--sb-smilie-left', `${Math.round(inputBox.left - formBox.left)}px`);
+      this.panel.style.setProperty('--sb-smilie-width', `${Math.round(inputBox.width)}px`);
+    },
+
+    /** One cell per smilie in MaM's Smilies tab, in its order. */
+    buildList() {
+      const grid = this.panel.querySelector('.mamsb-smilie-grid');
+      grid.replaceChildren();
+      this.items = [];
+      this.active = null;
+      const fragment = document.createDocumentFragment();
+      const seen = new Set();
+      for (const source of this.sources()) {
+        const code = source.dataset.ssps;
+        if (!code || seen.has(code)) continue;
+        seen.add(code);
+        const el = document.createElement('span');
+        el.className = 'mamsb-smilie-item';
+        el.id = `mamsb-smilie-${this.items.length}`;
+        el.setAttribute('role', 'option');
+        el.setAttribute('aria-label', code);
+        el.dataset.index = String(this.items.length);
+        const picture = document.createElement('img');
+        picture.src = source.getAttribute('src');
+        picture.alt = '';
+        picture.loading = 'lazy';
+        picture.decoding = 'async';
+        el.append(picture);
+        fragment.append(el);
+        this.items.push({ el, code, search: code.toLowerCase() });
+      }
+      grid.append(fragment);
+      this.built = true;
+    },
+
+    /** Show only smilies whose code contains what's typed (anywhere, so "love" finds :love073:). */
+    filter() {
+      const query = this.search.value.trim().toLowerCase();
+      this.panel.querySelector('.mamsb-emoji-clear').hidden = !this.search.value;
+      let any = false;
+      for (const item of this.items) {
+        const show = !query || item.search.includes(query);
+        if (item.el.hidden === show) item.el.hidden = !show;
+        any ||= show;
+      }
+      const empty = this.panel.querySelector('.mamsb-emoji-empty');
+      empty.hidden = any;
+      // Still waiting for MaM to send its smilies?
+      const loading = !this.items.length && this.loadStarted && Date.now() - this.loadStarted < this.LOAD_TIMEOUT_MS;
+      empty.textContent = loading ? 'Loading smilies…' : 'No smilies found';
+      this.list.hidden = !any;
+      if (query) this.list.scrollTop = 0;
+    },
+
+    /** Highlight an item (null: none) and show it larger, with its code, in the bottom strip. */
+    setActive(item, { scroll = true } = {}) {
+      this.highlight(item);
+      if (item) {
+        const preview = item.el.querySelector('img').cloneNode();
+        preview.loading = 'eager';
+        this.footPic.replaceChildren(preview);
+        this.footName.textContent = item.code;
+        if (scroll) this.scrollToItem(item);
+      } else {
+        this.footPic.replaceChildren();
+        this.footName.textContent = PICK_SEVERAL_HINT;
+      }
+    },
+
+    /**
+     * Type the code into the message box, with the spaces MaM needs around it
+     * to recognise a smilie. Shift keeps the picker open.
+     */
+    pick(item, keepOpen) {
+      this.typeIntoMessageBox((value, start, end) => {
+        const before = start > 0 && !/\s/.test(value[start - 1]) ? ' ' : '';
+        const after = /\s/.test(value[end] || '') ? '' : ' ';
+        return `${before}${item.code}${after}`;
+      }, keepOpen);
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // "Latest" pill: back to the newest shouts
+  // ---------------------------------------------------------------------------
+  // Once you scroll away from the newest shouts (so new ones no longer bring
+  // the list along), a pill in the list's corner nearest them jumps back.
+  // Works with either Shoutbox Order: newest at the bottom or at the top.
+  const latestPill = {
+    SHOW_AFTER: 80, // px away from the newest shouts before it appears
+    INSET: 12, // px from the list's edges
+    SCROLLBAR: 8, // px, so it clears the list's scrollbar
+    root: null,
+    pill: null,
+    frame: 0,
+    dismissed: false, // closed with ×: stays away until you're back at the newest shouts
+
+    build(root) {
+      const list = root.querySelector('#sbf');
+      if (!list || root.querySelector('.mamsb-latest-pill')) return;
+      this.root = root;
+      const pill = document.createElement('div');
+      pill.className = 'mamsb-latest-pill';
+      pill.hidden = true;
+      pill.innerHTML = `
+        <button type="button" class="mamsb-latest-go" title="Jump to the newest shouts">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3.5 8.5 8 13l4.5-4.5" /></svg><span>Latest</span>
+        </button>
+        <button type="button" class="mamsb-latest-close" title="Dismiss" aria-label="Dismiss">
+          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" /></svg>
+        </button>`;
+      pill.querySelector('.mamsb-latest-go').addEventListener('click', () => this.jump());
+      // Hidden until you're next back at the newest shouts; then it can appear again.
+      pill.querySelector('.mamsb-latest-close').addEventListener('click', () => {
+        this.dismissed = true;
+        pill.hidden = true;
+      });
+      root.append(pill);
+      this.pill = pill;
+
+      const update = () => this.schedule();
+      list.addEventListener('scroll', update, { passive: true });
+      window.addEventListener('resize', update);
+      new ResizeObserver(update).observe(root);
+      // New shouts, Load Older, and switching between the Shoutbox / Smilies tabs.
+      new MutationObserver(update).observe(list, { childList: true, attributes: true, attributeFilter: ['style', 'class'] });
+      update();
+    },
+
+    /** At most once per frame: scrolling fires very often. */
+    schedule() {
+      if (this.frame) return;
+      this.frame = requestAnimationFrame(() => {
+        this.frame = 0;
+        this.update();
+      });
+    },
+
+    update() {
+      const list = this.root.querySelector('#sbf');
+      const away = Boolean(list?.getClientRects().length) && distanceFromNewest(list) > this.SHOW_AFTER;
+      if (!away) this.dismissed = false;
+      const show = away && !this.dismissed;
+      this.pill.hidden = !show;
+      if (show) this.place(list);
+    },
+
+    /** In the list's corner nearest the newest shouts. */
+    place(list) {
+      const up = newestFirst();
+      this.pill.classList.toggle('is-up', up);
+      const parent = this.pill.offsetParent || document.body;
+      const parentBox = parent.getBoundingClientRect();
+      const listBox = list.getBoundingClientRect();
+      const offsetX = parent.scrollLeft - parent.clientLeft - parentBox.left;
+      const offsetY = parent.scrollTop - parent.clientTop - parentBox.top;
+      const left = listBox.right - this.INSET - this.SCROLLBAR - this.pill.offsetWidth + offsetX;
+      const top = up
+        ? listBox.top + this.INSET + offsetY
+        : listBox.bottom - this.INSET - this.pill.offsetHeight + offsetY;
+      this.pill.style.left = `${Math.round(left)}px`;
+      this.pill.style.top = `${Math.round(top)}px`;
+    },
+
+    jump() {
+      const list = this.root.querySelector('#sbf');
+      if (!list) return;
+      list.scrollTo({ top: newestFirst() ? 0 : list.scrollHeight, behavior: scrollBehaviour() });
     },
   };
 
@@ -4079,7 +4678,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           for (const node of mutation.addedNodes) {
-            if (node.nodeType === 1 && node.matches('ul.ui-autocomplete')) this.watch(node);
+            if (node.nodeType === Node.ELEMENT_NODE && node.matches('ul.ui-autocomplete')) this.watch(node);
           }
         }
       }).observe(document.body, { childList: true });

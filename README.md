@@ -1,6 +1,6 @@
 # 💬 MaM Shoutbox Modern Redesign
 
-![Version](https://img.shields.io/badge/version-1.2.1-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
+![Version](https://img.shields.io/badge/version-1.3.0-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
 
 A clean, modern dark chat view for the MaM shoutbox.
 
@@ -30,6 +30,7 @@ Works on current Chrome, Edge, Firefox and Safari. Mobile view has been tested o
 - **Clickable replies:** quotes are shown as a reply line above the shout. Click it to jump to the original shout, which briefly lights up.
 - **Highlights:** shouts that mention your username (or any words you choose) get a red tint, including replies to you.
 - **Emoji picker:** a ☺ button next to **Shout** opens a searchable list of emoji, with skin tones. Search by name or keyword ("happy", "thumbs"), use the arrow keys and Enter, and Shift-click or Shift+Enter to add several. It only lists emoji your device can show, and everything it needs is built into the script, so it loads nothing.
+- **Smilies picker:** a **SMILIES** button next to the emoji button opens a searchable grid of MaM's smilies, in place of the Smilies tab. Search any part of a code ("love" finds `:love073:`), use the arrow keys and Enter, and Shift-click or Shift+Enter to add several. The spaces MaM needs around a smilie are added for you. It shows MaM's own smilie images, the same ones the Smilies tab uses. Turn it off in Settings to get the Smilies tab back.
 - **Tidy suggestions:** typing `@name` or `:smilie` shows MaM's suggestions in a compact list just above the message box (or edit box), kept inside the shoutbox. Smilies are shown at a readable size next to their code, and names are in their class colour when they have a shout on screen.
 - **Readable names:**
   - Name colours that are hard to read on a dark background are adjusted only as much as needed, so they stay close to the original.
@@ -39,7 +40,7 @@ Works on current Chrome, Edge, Firefox and Safari. Mobile view has been tested o
   - Optional shading on every other shout (adjustable strength) and an outline on the shout under the mouse.
   - Dates shown as "Today" / "Yesterday", and times without seconds (the full time is in the tooltip).
   - On desktop, the shoutbox grows to fit your browser window.
-- **Keeps your place:** *Load Older* no longer throws you to the top. You stay on the shout you were reading, with a line marking where the older shouts begin. Leaving full screen puts you back where you were on the page.
+- **Keeps your place:** *Load Older* no longer throws you to the top. You stay on the shout you were reading, with a line marking where the older shouts begin. Leaving full screen puts you back where you were on the page. Once you've scrolled away from the newest shouts, a **Latest** button in the corner nearest them takes you straight back.
 - **Full screen:** press <kbd>Esc</kbd> to leave MaM's full-screen shoutbox.
 - **Mobile view (phones and tablets):**
   - A *📱 Mobile view* button opens the shoutbox full screen with a touch-friendly layout: larger text, name and time above each message, and a message box that stays above the on-screen keyboard.
@@ -55,8 +56,8 @@ Click **⚙ Settings** at the right of the shoutbox tab bar. Settings are saved 
 | Section | Options |
 | --- | --- |
 | **Messages** | Fit to window height (desktop only), mark where older shouts were loaded, hide seconds, "Today" / "Yesterday" dates, shade every other shout (with strength slider), outline the shout under the mouse. |
-| **Names** | Country flags, rank and donor icons, fix hard-to-read name colours, keep coloured backgrounds behind names, name column width. |
-| **Message Box & Full Screen** | Show your name in the box, emoji button, Esc leaves full screen, Mobile view (on touch screens / always / never). |
+| **Names** | Country flags (also needs flags on in your MaM preferences), rank and donor icons, fix hard-to-read name colours, keep coloured backgrounds behind names, name column width. |
+| **Message Box & Full Screen** | Show your name in the box, emoji button, smilies button (replaces the Smilies tab), Esc leaves full screen, Mobile view (on touch screens / always / never). |
 | **Highlights** | Words that highlight a shout. Your username is added for you, and you can remove it. |
 
 ## Reporting problems
