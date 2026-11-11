@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MaM Shoutbox Modern Redesign
 // @namespace    https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign
-// @version      1.5.0
+// @version      1.6.0
 // @description  Restyles the MyAnonamouse shoutbox as a clean, modern dark chat view.
 // @author       KAH-Rhyme
 // @license      MIT
@@ -2099,12 +2099,15 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     list.addEventListener(
       'scroll',
       () => {
-        if (list.getClientRects().length) atNewest = distanceFromNewest(list) < AT_BOTTOM_SLACK;
+        // A hold's corrections aren't you scrolling away (see scrollHold).
+        if (list.getClientRects().length && !scrollHold.active) {
+          atNewest = distanceFromNewest(list) < AT_BOTTOM_SLACK;
+        }
       },
       { passive: true },
     );
     const sizes = new ResizeObserver(() => {
-      if (!list.getClientRects().length) return; // hidden (other tab)
+      if (!list.getClientRects().length || scrollHold.active) return; // hidden (other tab), or held still
       if (atNewest && distanceFromNewest(list) >= AT_BOTTOM_SLACK) scrollToNewest(list);
     });
     sizes.observe(list);
@@ -3098,6 +3101,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       if (other !== shout) other.classList.remove('mamsb-tapped');
     }
     shout?.classList.toggle('mamsb-tapped');
+    scrollHold.onTap(shout);
   }
 
   /** "📱 Mobile view" next to MaM's ⛶, and "✕ Exit" in the tab bar. */
@@ -3868,11 +3872,20 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     }
     if (!shouts.size && !newDateBreak) return;
 
-    shouts.forEach(processShout);
-    applyMenuMode(root);
-    stripeShouts(root);
-    const clockChanged = learnFromLiveShouts(root, addedShouts);
-    if (newDateBreak || clockChanged) applyAllDates(root);
+    // MaM scrolls to a new shout as it adds it; restyling it next can make it
+    // taller, which would leave the list short of the newest shout (and MaM
+    // then stops following). So stay at the newest shouts if that's where
+    // MaM left the list.
+    const restyle = () => {
+      shouts.forEach(processShout);
+      applyMenuMode(root);
+      stripeShouts(root);
+      const clockChanged = learnFromLiveShouts(root, addedShouts);
+      if (newDateBreak || clockChanged) applyAllDates(root);
+    };
+    const list = root.querySelector('#sbf');
+    if (list) keepingNewestInView(list, restyle);
+    else restyle();
     if (shouts.size) {
       colourInputNick(root);
       settleLoadOlder(root);
@@ -4053,6 +4066,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     buildMobileControls(root);
     zoomPill.build(root);
     latestPill.build(root);
+    scrollHold.setUp(root);
     root.addEventListener('click', (event) => onMobileTap(root, event));
     updateMobileView(root); // in case the page loaded already full screen
     fitPageToScreen();
@@ -4977,8 +4991,10 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 
     update() {
       const list = this.root.querySelector('#sbf');
-      if (!list?.getClientRects().length) {
-        this.pill.hidden = true; // hidden (other tab)
+      // Hidden (other tab), or held still for a moment while you were at the
+      // newest shouts: it catches up by itself when the hold ends.
+      if (!list?.getClientRects().length || scrollHold.holdsNewest()) {
+        this.pill.hidden = true;
         return;
       }
       const listBox = list.getBoundingClientRect();
@@ -5055,6 +5071,148 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         const bottom = formBox ? formBox.bottom : listBox.bottom;
         if (bottom > window.innerHeight) window.scrollBy({ top: bottom + FILL_MARGIN - window.innerHeight, behavior });
       }
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // Hold the list still while you aim at a shout's buttons
+  // ---------------------------------------------------------------------------
+  // A shout arriving just as you go to click @ / quote / ✉ / ✎ would scroll
+  // the row out from under the mouse. For up to HOLD_MS after you reach a
+  // shout's buttons (or tap a shout to show them, on touch screens), the
+  // shout stays where it is on screen:
+  //  - Scrolling by code (MaM following new shouts, or this script) is
+  //    ignored: the list's scrollTop is made read-only for the hold.
+  //  - Anything else that would move the shout (new shouts added above it,
+  //    images loading) is corrected before the browser draws it.
+  // Your own scrolling still works, and ends the hold. When the hold ends,
+  // if you were at the newest shouts, the list catches up with any that
+  // arrived meanwhile.
+  const HOLD_MS = 3000;
+  const NATIVE_SCROLL_TOP = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
+  const SHOUT_BUTTONS = '.mamsb-msg > :is(.sbAt, .sbNewQuote, .mamsb-pm, .mamsb-edit, .sb_menu)';
+  const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
+
+  const scrollHold = {
+    list: null,
+    shout: null, // the shout held in place; null when there's no hold
+    offset: 0, // px from the list's top to the shout's top, to keep
+    wasAtNewest: false, // at the newest shouts when the hold started
+    timer: 0,
+    hovered: null, // the shout whose buttons the mouse is over
+
+    get active() {
+      return this.shout !== null;
+    },
+
+    /** Held while at the newest shouts: following them waits until the hold ends. */
+    holdsNewest() {
+      return this.active && this.wasAtNewest;
+    },
+
+    setUp(root) {
+      const list = root.querySelector('#sbf');
+      if (!list) return;
+      this.list = list;
+      const pin = () => this.pin();
+      list.addEventListener('scroll', pin, { passive: true });
+      new ResizeObserver(pin).observe(listContent(list)); // shouts added, images loading
+
+      // Mouse: reaching a shout's buttons starts a hold; moving between them
+      // keeps it; moving off them ends it. Only real mouse movement counts:
+      // when content moves under a still mouse, the browser reports it as
+      // over something else, which mustn't end the hold.
+      root.addEventListener('pointermove', (event) => {
+        if (event.pointerType === 'touch') return; // touch: see onTap
+        const shout = event.target.closest(SHOUT_BUTTONS)?.parentElement || null;
+        if (shout === this.hovered) return;
+        this.hovered = shout;
+        if (shout) this.start(shout);
+        else this.end(true);
+      });
+      root.addEventListener('pointerleave', () => {
+        if (!this.hovered) return;
+        this.hovered = null;
+        this.end(true);
+      });
+      // Clicking (or tapping) a button: done aiming. Capture phase, so it's
+      // over before MaM's handler runs.
+      root.addEventListener(
+        'click',
+        (event) => {
+          if (event.target.closest(SHOUT_BUTTONS)) this.end(true);
+        },
+        true,
+      );
+
+      // Scrolling yourself takes over: the hold steps aside without catching up.
+      const yourScroll = () => this.end(false);
+      list.addEventListener('wheel', yourScroll, { passive: true });
+      list.addEventListener('touchmove', yourScroll, { passive: true });
+      list.addEventListener('pointerdown', (event) => {
+        if (event.target === list) yourScroll(); // the scrollbar
+      });
+      document.addEventListener('keydown', (event) => {
+        if (!SCROLL_KEYS.has(event.key)) return;
+        if (event.target.closest?.('input, textarea, select, [contenteditable]')) return; // typing
+        yourScroll();
+      });
+    },
+
+    /** Touch screens: tapping a shout to show its buttons starts a hold; tapping it again ends it. */
+    onTap(shout) {
+      if (shout?.classList.contains('mamsb-tapped')) this.start(shout);
+      else this.end(true);
+    },
+
+    start(shout) {
+      const list = this.list;
+      if (!list?.getClientRects().length) return;
+      // Moving straight on to another shout's buttons: same hold, new shout.
+      if (!this.active) {
+        this.wasAtNewest = distanceFromNewest(list) < AT_BOTTOM_SLACK;
+        // Reads work as normal; writes (MaM's and ours) are dropped until end().
+        Object.defineProperty(list, 'scrollTop', {
+          configurable: true,
+          get: () => NATIVE_SCROLL_TOP.get.call(list),
+          set: () => {},
+        });
+      }
+      this.shout = shout;
+      this.offset = this.topOf(shout);
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => this.end(true), HOLD_MS);
+      latestPill.schedule();
+    },
+
+    topOf(shout) {
+      return shout.getBoundingClientRect().top - this.list.getBoundingClientRect().top;
+    },
+
+    /** Put the held shout back where it was, if anything moved it. */
+    pin() {
+      if (!this.active) return;
+      if (!this.shout.isConnected) {
+        // MaM replaces a shout when it's edited (same ID); if it's gone, so is the hold.
+        const replacement = this.shout.id ? document.getElementById(this.shout.id) : null;
+        if (!replacement) {
+          this.end(true);
+          return;
+        }
+        this.shout = replacement;
+      }
+      const drift = this.topOf(this.shout) - this.offset;
+      if (Math.abs(drift) >= 1) NATIVE_SCROLL_TOP.set.call(this.list, NATIVE_SCROLL_TOP.get.call(this.list) + drift);
+    },
+
+    /** End the hold; `catchUp`: go to the newest shouts if that's where you were. */
+    end(catchUp) {
+      if (!this.active) return;
+      clearTimeout(this.timer);
+      this.shout = null;
+      delete this.list.scrollTop; // writable again
+      if (catchUp && this.wasAtNewest) scrollToNewest(this.list);
+      latestPill.schedule();
     },
   };
 
