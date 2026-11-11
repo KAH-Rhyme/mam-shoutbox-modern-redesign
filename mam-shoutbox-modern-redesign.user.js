@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MaM Shoutbox Modern Redesign
 // @namespace    https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign
-// @version      1.4.2
+// @version      1.5.0
 // @description  Restyles the MyAnonamouse shoutbox as a clean, modern dark chat view.
 // @author       KAH-Rhyme
 // @license      MIT
@@ -26,10 +26,13 @@
   // ---------------------------------------------------------------------------
   const DEFAULTS = {
     /**
-     * Make the message list as tall as the window allows, leaving FILL_MARGIN
-     * px above and below the whole shoutbox. Off = MaM's own 250px list.
+     * Height of the message list (desktop only): 'window' = as tall as the
+     * window allows, leaving FILL_MARGIN px above and below the whole
+     * shoutbox; 'mam' = MaM's own 250px; 'custom' = customHeight.
      */
-    fillHeight: true,
+    listHeight: 'window',
+    /** The message list's height in px when listHeight is 'custom'. */
+    customHeight: 600,
     /** After "Load Older", mark where the newly loaded (earlier) shouts end. */
     loadDivider: true,
     /** Show 11:06 instead of 11:06:50 (the full time stays in the tooltip). */
@@ -106,6 +109,12 @@
   const FILL_MARGIN = 50;
   const MIN_LIST_HEIGHT = 250;
 
+  const LIST_HEIGHT_CHOICES = ['mam', 'window', 'custom'];
+  // Custom height range, px.
+  const CUSTOM_HEIGHT_MIN = 160;
+  const CUSTOM_HEIGHT_MAX = 3000;
+  const CUSTOM_HEIGHT_STEP = 10;
+
   // "Load Older": how much of the newly loaded shouts to leave peeking in above
   // the shout you were reading, so it's clear more arrived.
   const LOAD_PEEK = 24;
@@ -125,6 +134,14 @@
         out[key] = saved[key];
       }
     }
+    // Before 1.5.0 this was a checkbox, "Fit the shoutbox to the window height".
+    if (!('listHeight' in saved) && typeof saved.fillHeight === 'boolean') {
+      out.listHeight = saved.fillHeight ? 'window' : 'mam';
+    }
+    if (!LIST_HEIGHT_CHOICES.includes(out.listHeight)) out.listHeight = DEFAULTS.listHeight;
+    out.customHeight = Number.isFinite(out.customHeight)
+      ? clamp(Math.round(out.customHeight), CUSTOM_HEIGHT_MIN, CUSTOM_HEIGHT_MAX)
+      : DEFAULTS.customHeight;
     out.zebraStrength = clamp(out.zebraStrength, ZEBRA_MIN, ZEBRA_MAX);
     out.nickColumnWidth = clamp(out.nickColumnWidth, NICK_WIDTH_MIN, NICK_WIDTH_MAX);
     if (!MOBILE_VIEW_CHOICES.includes(out.mobileView)) out.mobileView = DEFAULTS.mobileView;
@@ -390,6 +407,24 @@
   font-family: var(--sb-font) !important;
   font-size: 13px !important;
 }
+#shoutbox.mamsb .mamsb-settings-number { cursor: default; }
+#shoutbox.mamsb .mamsb-settings-panel .mamsb-settings-number input {
+  box-sizing: border-box;
+  width: 76px;
+  margin-left: auto;
+  padding: 4px 6px !important;
+  background: var(--sb-bg-primary) !important;
+  color: var(--sb-text) !important;
+  border: 1px solid var(--sb-border) !important;
+  border-radius: 4px;
+  color-scheme: dark;
+  font-family: var(--sb-font) !important;
+  font-size: 13px !important;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+#shoutbox.mamsb .mamsb-settings-number input:focus { outline: none; border-color: var(--sb-accent) !important; }
+#shoutbox.mamsb .mamsb-settings-number span { color: var(--sb-text-secondary); }
 #shoutbox.mamsb .mamsb-settings-foot {
   display: flex;
   flex-wrap: wrap;
@@ -425,9 +460,15 @@
   scrollbar-color: var(--sb-border) var(--sb-bg-primary);
   scrollbar-width: thin;
 }
-/* "Fill the window height": the height is worked out in fitHeight(). Applied
-   to both tab panels (shouts and Smilies) so switching tabs keeps the size. */
+/* Fit to window / custom height: the height is worked out in fitHeight().
+   Applied to both tab panels (shouts and Smilies) so switching tabs keeps the size. */
 #shoutbox.mamsb.mamsb-fill > .sbf { height: var(--sb-list-h, 250px) !important; }
+/* Oldest-first order: when the shouts don't fill the list, they sit at its
+   bottom, so any empty space is above Load Older, never past the newest
+   shout. (No !important on display: MaM's tabs hide the list with an inline
+   display: none.) Once the list is full this changes nothing. */
+#shoutbox.mamsb.mamsb-oldest-first > #sbf { display: flex; flex-direction: column; }
+#shoutbox.mamsb.mamsb-oldest-first > #sbf > .blockBodyCon { flex: none; margin-top: auto !important; }
 #shoutbox.mamsb .sbf::-webkit-scrollbar { width: 8px; }
 #shoutbox.mamsb .sbf::-webkit-scrollbar-track { background: var(--sb-bg-primary); }
 #shoutbox.mamsb .sbf::-webkit-scrollbar-thumb { background: var(--sb-border); border-radius: 4px; }
@@ -3413,13 +3454,14 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   }
 
   // ---------------------------------------------------------------------------
-  // Fit the shoutbox to the window height
+  // Message list height: MaM's default, fit to the window, or custom
   // ---------------------------------------------------------------------------
   /**
-   * Size the message list so the whole shoutbox (tabs, list, message box) fits
-   * the window with FILL_MARGIN px above and below. Skipped while maximised,
-   * where MaM sizes the list itself, and on touch screens, where the page is
-   * zoomed and scrolled freely so "the window height" isn't a useful size.
+   * Fit to window: size the message list so the whole shoutbox (tabs, list,
+   * message box) fits the window with FILL_MARGIN px above and below.
+   * Custom: the height you chose. Both are skipped while maximised, where MaM
+   * sizes the list itself, and on touch screens, where the page is zoomed and
+   * scrolled freely so a fixed height isn't useful.
    */
   const MIN_HEIGHT_CHANGE = 2; // px; smaller differences are rounding, not a real change
   let fitGuard = null; // created in setUpSizing (needs root for its notice)
@@ -3427,21 +3469,28 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   function fitHeight(root) {
     const list = root.querySelector('#sbf');
     if (!list) return;
-    const enabled = settings.fillHeight && !coarsePointer.matches && !isMaximised(root) && !fitGuard?.tripped;
+    const mode = settings.listHeight;
+    const enabled = mode !== 'mam' && !coarsePointer.matches && !isMaximised(root) && !fitGuard?.tripped;
 
     // Measure against whichever tab panel is showing (shouts or Smilies);
     // both get the same height.
     const shownPanel = [...root.querySelectorAll(':scope > .sbf')].find((panel) => panel.getClientRects().length);
     if (enabled && shownPanel) {
-      const otherParts = root.getBoundingClientRect().height - shownPanel.getBoundingClientRect().height;
-      const available = Math.floor(window.innerHeight - 2 * FILL_MARGIN - otherParts);
-      const height = Math.max(MIN_LIST_HEIGHT, available);
+      let height = settings.customHeight;
+      if (mode === 'window') {
+        const otherParts = root.getBoundingClientRect().height - shownPanel.getBoundingClientRect().height;
+        const available = Math.floor(window.innerHeight - 2 * FILL_MARGIN - otherParts);
+        height = Math.max(MIN_LIST_HEIGHT, available);
+      }
       // Kept on <html>, not #shoutbox, so writing it doesn't re-trigger the
       // watcher on #shoutbox's style (see setUpSizing).
       const htmlStyle = document.documentElement.style;
       const current = Number.parseFloat(htmlStyle.getPropertyValue('--sb-list-h'));
       const changed = Number.isNaN(current) || Math.abs(current - height) >= MIN_HEIGHT_CHANGE;
-      if (changed && (!fitGuard || fitGuard.allow())) {
+      // Only fitting to the window can feed back on itself; a custom height
+      // changes only when you change it.
+      const allowed = mode !== 'window' || !fitGuard || fitGuard.allow();
+      if (changed && allowed) {
         keepingNewestInView(list, () => htmlStyle.setProperty('--sb-list-h', `${height}px`));
       }
     }
@@ -3456,6 +3505,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   // ---------------------------------------------------------------------------
   /** Settings that only need classes / CSS variables on #shoutbox. Cheap. */
   function applyLayout(root) {
+    root.classList.toggle('mamsb-oldest-first', !newestFirst());
     root.classList.toggle('mamsb-hide-flags', !settings.showFlags);
     root.classList.toggle('mamsb-hide-icons', !settings.showUserIcons);
     root.classList.toggle('mamsb-zebra', settings.zebraRows);
@@ -3538,7 +3588,18 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         <div class="mamsb-settings-cols">
           <section>
             <h4 class="mamsb-settings-heading">Messages</h4>
-            <label data-not-touch title="Makes the shoutbox as tall as your browser window allows. Off: MaM's original, shorter height."><input type="checkbox" data-key="fillHeight"> Fit the shoutbox to the window height</label>
+            <label data-not-touch title="Fit to window: as tall as your browser window allows. MaM default: MaM's original 250px. Custom: a height you choose.">Shoutbox height
+              <select data-key="listHeight">
+                <option value="mam">MaM default</option>
+                <option value="window">Fit to window</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label class="mamsb-settings-number mamsb-settings-sub" data-not-touch data-depends="listHeight=custom"
+              title="The height of the message list, ${CUSTOM_HEIGHT_MIN}–${CUSTOM_HEIGHT_MAX}px. It can be taller than the window.">Message list
+              <input type="number" min="${CUSTOM_HEIGHT_MIN}" max="${CUSTOM_HEIGHT_MAX}" step="${CUSTOM_HEIGHT_STEP}"
+                data-key="customHeight" inputmode="numeric"><span>px</span>
+            </label>
             <label title="After clicking Load Older, adds a line where the older shouts begin."><input type="checkbox" data-key="loadDivider"> Mark where older shouts were loaded</label>
             <label title="The full time, with seconds, still shows when you hover over it."><input type="checkbox" data-key="shortTimestamps"> Hide seconds in times (11:06)</label>
             <label title="Instead of dates like 2026-11-06. Older dates are written out in full."><input type="checkbox" data-key="friendlyDates"> Show dates as "Today" / "Yesterday"</label>
@@ -3602,10 +3663,12 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       if (output) output.textContent = `${slider.value}${slider.dataset.unit || ''}`;
     };
 
-    // Sub-options (e.g. shading strength) only show while their checkbox is on.
+    // Sub-options only show while their parent option is on: data-depends="key"
+    // for a checkbox (e.g. shading strength), "key=value" for a dropdown choice.
     const showDependentOptions = () => {
       for (const option of panel.querySelectorAll('[data-depends]')) {
-        option.hidden = !settings[option.dataset.depends];
+        const [key, value] = option.dataset.depends.split('=');
+        option.hidden = value === undefined ? !settings[key] : settings[key] !== value;
       }
     };
 
@@ -3693,6 +3756,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
         applyLayout(root);
       } else if (control.tagName === 'SELECT') {
         settings[key] = control.value;
+        showDependentOptions();
         saveSettings();
         applySettings(root, SETTING_EFFECTS[key] || []);
       } else if (control === wordsInput) {
@@ -3705,7 +3769,20 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       }
     });
     panel.addEventListener('change', (event) => {
-      if (event.target.type === 'range') saveSettings();
+      const control = event.target;
+      if (control.type === 'range') saveSettings();
+      // Number boxes apply on Enter, leaving the box, or the arrows; not on
+      // every keystroke, or typing 800 would pass through 8 and 80.
+      if (control.type === 'number') {
+        const key = control.dataset.key;
+        const typed = Number.parseFloat(control.value);
+        if (Number.isFinite(typed)) {
+          settings[key] = clamp(Math.round(typed), Number(control.min), Number(control.max));
+          saveSettings();
+          applyLayout(root);
+        }
+        control.value = settings[key]; // shows the clamped value, or the old one if it wasn't a number
+      }
     });
 
     panel.querySelector('.mamsb-settings-reset').addEventListener('click', () => {
@@ -3903,8 +3980,8 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       root.classList.remove('mamsb-fill');
       showNotice(
         root,
-        `"Fit the shoutbox to the window height" was paused: it kept re-sizing (window height ${window.innerHeight}px). ` +
-          'Reload to try again, or turn it off in Settings.',
+        `Fitting the shoutbox to the window height was paused: it kept re-sizing (window height ${window.innerHeight}px). ` +
+          'Reload to try again, or choose another height in Settings.',
       );
     });
     maximised = isMaximised(root);
@@ -4838,17 +4915,19 @@ html.mamsb-mobile-open body > .ui-autocomplete {
   // ---------------------------------------------------------------------------
   // "Latest" pill: back to the newest shouts
   // ---------------------------------------------------------------------------
-  // Once you scroll away from the newest shouts (so new ones no longer bring
-  // the list along), a pill in the list's corner nearest them jumps back.
-  // Works with either Shoutbox Order: newest at the bottom or at the top.
+  // Once the newest shout is out of sight (the list scrolled away from it, or
+  // the page scrolled so it's past the edge of the window), a pill in the
+  // list's corner nearest it brings it back into view. Works with either
+  // Shoutbox Order: newest at the bottom or at the top.
   const latestPill = {
-    SHOW_AFTER: 80, // px away from the newest shouts before it appears
+    SHOW_AFTER: 80, // px the newest shout is out of sight before it appears
     INSET: 12, // px from the list's edges
     SCROLLBAR: 8, // px, so it clears the list's scrollbar
+    MIN_VISIBLE: 60, // px of the list that must be on screen to hold the pill
     root: null,
     pill: null,
     frame: 0,
-    dismissed: false, // closed with ×: stays away until you're back at the newest shouts
+    dismissed: false, // closed with ×: stays away until the newest shout is back in sight
 
     build(root) {
       const list = root.querySelector('#sbf');
@@ -4865,7 +4944,7 @@ html.mamsb-mobile-open body > .ui-autocomplete {
           <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" /></svg>
         </button>`;
       pill.querySelector('.mamsb-latest-go').addEventListener('click', () => this.jump());
-      // Hidden until you're next back at the newest shouts; then it can appear again.
+      // Hidden until the newest shout is next in sight; then it can appear again.
       pill.querySelector('.mamsb-latest-close').addEventListener('click', () => {
         this.dismissed = true;
         pill.hidden = true;
@@ -4875,6 +4954,8 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 
       const update = () => this.schedule();
       list.addEventListener('scroll', update, { passive: true });
+      // A list taller than the window: the pill follows the part you can see.
+      window.addEventListener('scroll', update, { passive: true });
       window.addEventListener('resize', update);
       const sizes = new ResizeObserver(update);
       sizes.observe(root);
@@ -4896,14 +4977,35 @@ html.mamsb-mobile-open body > .ui-autocomplete {
 
     update() {
       const list = this.root.querySelector('#sbf');
-      const away = Boolean(list?.getClientRects().length) && distanceFromNewest(list) > this.SHOW_AFTER;
+      if (!list?.getClientRects().length) {
+        this.pill.hidden = true; // hidden (other tab)
+        return;
+      }
+      const listBox = list.getBoundingClientRect();
+      const away = this.outOfSight(list, listBox) > this.SHOW_AFTER;
       if (!away) this.dismissed = false;
-      const show = away && !this.dismissed;
+      // Only inside the list: if too little of it is on screen to hold the
+      // pill, you've scrolled the page away from the shoutbox.
+      const visible = Math.min(listBox.bottom, window.innerHeight) - Math.max(listBox.top, 0);
+      const show = away && !this.dismissed && visible >= this.MIN_VISIBLE;
       this.pill.hidden = !show;
       if (show) this.place(list);
     },
 
-    /** In the list's corner nearest the newest shouts. */
+    /**
+     * How far (px) the newest shout is out of sight: hidden by the list's
+     * scrolling, plus however far the list's newest edge is past the window.
+     */
+    outOfSight(list, listBox) {
+      const pastWindow = newestFirst() ? -listBox.top : listBox.bottom - window.innerHeight;
+      return distanceFromNewest(list) + Math.max(0, pastWindow);
+    },
+
+    /**
+     * In the list's corner nearest the newest shouts. If the list runs past
+     * the top or bottom of the window, that edge of the part you can see
+     * stands in for the corner.
+     */
     place(list) {
       const up = newestFirst();
       this.pill.classList.toggle('is-up', up);
@@ -4913,9 +5015,13 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       const offsetX = parent.scrollLeft - parent.clientLeft - parentBox.left;
       const offsetY = parent.scrollTop - parent.clientTop - parentBox.top;
       const left = listBox.right - this.INSET - this.SCROLLBAR - this.pill.offsetWidth + offsetX;
+      const height = this.pill.offsetHeight;
+      // Kept inside the list, even when only a sliver of it is on screen.
+      const highest = listBox.top + this.INSET;
+      const lowest = listBox.bottom - this.INSET - height;
       const top = up
-        ? listBox.top + this.INSET + offsetY
-        : listBox.bottom - this.INSET - this.pill.offsetHeight + offsetY;
+        ? clamp(Math.max(listBox.top, 0) + this.INSET, highest, lowest) + offsetY
+        : clamp(Math.min(listBox.bottom, window.innerHeight) - this.INSET - height, highest, lowest) + offsetY;
       this.pill.style.left = `${Math.round(left)}px`;
       this.pill.style.top = `${Math.round(top)}px`;
     },
@@ -4923,7 +5029,32 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     jump() {
       const list = this.root.querySelector('#sbf');
       if (!list) return;
-      list.scrollTo({ top: newestFirst() ? 0 : list.scrollHeight, behavior: scrollBehaviour() });
+      const behavior = scrollBehaviour();
+      list.scrollTo({ top: newestFirst() ? 0 : list.scrollHeight, behavior });
+      this.bringIntoView(list, behavior);
+    },
+
+    /**
+     * Scroll the page (if needed) so the list's newest edge is on screen,
+     * along with the message box if it's on that side of the list (below it
+     * normally; above it with newest-first order and MaM's "Text and Smilies
+     * Entry: top"). Same margin as Fit to window. Full screen and mobile view
+     * never need it.
+     */
+    bringIntoView(list, behavior) {
+      if (isMaximised(this.root)) return;
+      const up = newestFirst();
+      const listBox = list.getBoundingClientRect();
+      const form = this.root.querySelector(':scope > #sbform');
+      const formAfterList = Boolean(form && list.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const formBox = form && formAfterList !== up ? form.getBoundingClientRect() : null;
+      if (up) {
+        const top = formBox ? formBox.top : listBox.top;
+        if (top < 0) window.scrollBy({ top: top - FILL_MARGIN, behavior });
+      } else {
+        const bottom = formBox ? formBox.bottom : listBox.bottom;
+        if (bottom > window.innerHeight) window.scrollBy({ top: bottom + FILL_MARGIN - window.innerHeight, behavior });
+      }
     },
   };
 

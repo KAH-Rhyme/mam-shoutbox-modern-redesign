@@ -1,6 +1,6 @@
 # 💬 MaM Shoutbox Modern Redesign
 
-![Version](https://img.shields.io/badge/version-1.4.2-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
+![Version](https://img.shields.io/badge/version-1.5.0-4475e9) ![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)
 
 A clean, modern dark chat view for the MaM shoutbox.
 
@@ -40,8 +40,8 @@ Works on current Chrome, Edge, Firefox and Safari. Mobile view has been tested o
 - **Easier reading:**
   - Optional shading on every other shout (adjustable strength) and an outline on the shout under the mouse.
   - Dates shown as "Today" / "Yesterday", and times without seconds (the full time is in the tooltip).
-  - On desktop, the shoutbox grows to fit your browser window.
-- **Keeps your place:** *Load Older* no longer throws you to the top. You stay on the shout you were reading, with a line marking where the older shouts begin. Leaving full screen puts you back where you were on the page. Once you've scrolled away from the newest shouts, a **Latest** button in the corner nearest them takes you straight back.
+  - On desktop, the shoutbox grows to fit your browser window, or to a height you choose.
+- **Keeps your place:** *Load Older* no longer throws you to the top. You stay on the shout you were reading, with a line marking where the older shouts begin. Leaving full screen puts you back where you were on the page. Whenever the newest shout is out of sight, because you've scrolled the shoutbox or the page, a **Latest** button in the corner nearest it brings it back into view, along with the message box.
 - **Full screen:** press <kbd>Esc</kbd> to leave MaM's full-screen shoutbox.
 - **Mobile view (phones and tablets):**
   - A *📱 Mobile view* button opens the shoutbox full screen with a touch-friendly layout: larger text, name and time above each message, and a message box that stays above the on-screen keyboard.
@@ -56,7 +56,7 @@ Click **⚙ Settings** at the right of the shoutbox tab bar. Settings are saved 
 
 | Section | Options |
 | --- | --- |
-| **Messages** | Fit to window height (desktop only), mark where older shouts were loaded, hide seconds, "Today" / "Yesterday" dates, shade every other shout (with strength slider), outline the shout under the mouse, MaM's ⋮ menu in place of the ✉ / ✎ buttons (staff always have it). |
+| **Messages** | Shoutbox height: fit to window, MaM default, or custom (desktop only), mark where older shouts were loaded, hide seconds, "Today" / "Yesterday" dates, shade every other shout (with strength slider), outline the shout under the mouse, MaM's ⋮ menu in place of the ✉ / ✎ buttons (staff always have it). |
 | **Names** | Country flags (also needs flags on in your MaM preferences), rank and donor icons, fix hard-to-read name colours, keep coloured backgrounds behind names, name column width. |
 | **Message Box & Full Screen** | Show your name in the box, emoji button, smilies button (replaces the Smilies tab), Esc leaves full screen, Mobile view (on touch screens / always / never). |
 | **Highlights** | Words that highlight a shout. Your username is added for you, and you can remove it. |
