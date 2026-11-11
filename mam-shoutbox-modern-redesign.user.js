@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MaM Shoutbox Modern Redesign
 // @namespace    https://github.com/KAH-Rhyme/mam-shoutbox-modern-redesign
-// @version      1.4.1
+// @version      1.4.2
 // @description  Restyles the MyAnonamouse shoutbox as a clean, modern dark chat view.
 // @author       KAH-Rhyme
 // @license      MIT
@@ -2039,12 +2039,19 @@ html.mamsb-mobile-open body > .ui-autocomplete {
     if (wasAtNewest) scrollToNewest(list);
   }
 
+  /** The element inside the list that holds the shouts; it grows as they're added. */
+  function listContent(list) {
+    return list.querySelector(':scope > .blockBodyCon') || list;
+  }
+
   /**
-   * The same for size changes the script doesn't make itself, e.g. MaM
-   * shrinking the list when you leave full screen. By the time anything can
-   * react, the list is already smaller and no longer looks scrolled to the
-   * newest shouts, so whether you were there is remembered from your last
-   * scroll instead.
+   * The same for size changes the script doesn't make itself: MaM shrinking
+   * the list when you leave full screen, or the shouts growing after MaM has
+   * scrolled (smilies and images loading, reply lines being added). MaM only
+   * follows new shouts while within 5px of the newest, so without this, one
+   * late image could leave the list stuck. By the time anything can react,
+   * the newest shouts have already moved out of view, so whether you were
+   * there is remembered from your last scroll instead.
    */
   function stayAtNewestWhenResized(list) {
     let atNewest = true;
@@ -2055,10 +2062,12 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       },
       { passive: true },
     );
-    new ResizeObserver(() => {
+    const sizes = new ResizeObserver(() => {
       if (!list.getClientRects().length) return; // hidden (other tab)
       if (atNewest && distanceFromNewest(list) >= AT_BOTTOM_SLACK) scrollToNewest(list);
-    }).observe(list);
+    });
+    sizes.observe(list);
+    sizes.observe(listContent(list));
   }
 
   // ---------------------------------------------------------------------------
@@ -4867,9 +4876,12 @@ html.mamsb-mobile-open body > .ui-autocomplete {
       const update = () => this.schedule();
       list.addEventListener('scroll', update, { passive: true });
       window.addEventListener('resize', update);
-      new ResizeObserver(update).observe(root);
-      // New shouts, Load Older, and switching between the Shoutbox / Smilies tabs.
-      new MutationObserver(update).observe(list, { childList: true, attributes: true, attributeFilter: ['style', 'class'] });
+      const sizes = new ResizeObserver(update);
+      sizes.observe(root);
+      // New shouts, Load Older, and smilies / images loading late.
+      sizes.observe(listContent(list));
+      // Switching between the Shoutbox / Smilies tabs.
+      new MutationObserver(update).observe(list, { attributes: true, attributeFilter: ['style', 'class'] });
       update();
     },
 
